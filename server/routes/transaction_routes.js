@@ -127,7 +127,8 @@ router.post("/edit/:id", async (req, res) => {
 
 // Get current day transaction
 router.get("/getCurrentTransactions", async (req, res) => {
-  const date = new Date(Date.now()).toISOString().slice(0, 10);
+  // 28800000 represents GMT+08:00
+  const date = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
 
   try {
     const transactions = await Transaction.findAll({
@@ -143,7 +144,8 @@ router.get("/getCurrentTransactions", async (req, res) => {
 
 // Get current week transaction
 router.get("/getWeeklyTransactions", async (req, res) => {
-  const currentDate = new Date(Date.now());
+  // 28800000 represents GMT+08:00
+  const currentDate = new Date(Date.now() + 28800000);
 
   const getWeekSpan = (date) => {
     const sDate = date.toISOString().slice(0, 10);
@@ -180,7 +182,8 @@ router.get("/getWeeklyTransactions", async (req, res) => {
 
 // Get monthly transactions
 router.get("/getMonthlyTransactions", async (req, res) => {
-  const date = new Date(Date.now()).toISOString().slice(0, 7);
+  // 28800000 represents GMT+08:00
+  const date = new Date(Date.now() + 28800000).toISOString().slice(0, 7);
 
   try {
     const transactions = await Transaction.findAll({
@@ -197,7 +200,8 @@ router.get("/getMonthlyTransactions", async (req, res) => {
 
 // Get yearly transactions
 router.get("/getYearlyTransactions", async (req, res) => {
-  const date = new Date(Date.now()).toISOString().slice(0, 4);
+  // 28800000 represents GMT+08:00
+  const date = new Date(Date.now() + 28800000).toISOString().slice(0, 4);
 
   try {
     const transactions = await Transaction.findAll({
