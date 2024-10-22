@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Form from "./pages/Form.tsx";
 import Dashboard from "./pages/Dashboard/index.ts";
+import "./globals.css";
 
 const router = createBrowserRouter([
   { path: "/", element: <App /> },
