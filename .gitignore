@@ -1,0 +1,54 @@
+# Node modules (for both client and server)
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output (React and Express)
+client/build/
+server/dist/
+
+# Dependency directories
+client/.pnp/
+server/.pnp/
+.pnp.js
+
+# Static files
+public/static
+
+# Testing output
+coverage/
+client/coverage/
+server/coverage/
+
+# Environment variable files
+.env
+client/.env
+server/.env
+
+# Ignore database files
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+data/
+
+# IDE or OS-specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Ignore Yarn and package-lock files (if you are using one package manager)
+client/package-lock.json
+server/package-lock.json
+yarn.lock
+
+# Miscellaneous
+*.swp
