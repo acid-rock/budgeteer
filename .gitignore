@@ -46,6 +46,7 @@ data/
 Thumbs.db
 
 # Ignore Yarn and package-lock files (if you are using one package manager)
+package-lock.json
 client/package-lock.json
 server/package-lock.json
 yarn.lock
