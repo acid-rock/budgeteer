@@ -133,6 +133,7 @@ router.get("/getCurrentTransactions", async (req, res) => {
   try {
     const transactions = await Transaction.findAll({
       where: { date: { [Op.startsWith]: date } },
+      order: [["date", "DESC"]],
     });
 
     return res.json(transactions);
