@@ -23,6 +23,13 @@ All notable changes to Budgeteer. Format loosely follows
   - New `BudgetRow` component.
 
 ### Changed
+- **Deployment prep (Vercel).**
+  - `build` script now runs `prisma generate && next build` so the Prisma client
+    is regenerated on every Vercel build (Vercel caches `node_modules`).
+  - Dashboard marked `export const dynamic = "force-dynamic"` so it renders
+    per-request from the DB instead of being statically prerendered at build.
+  - Verified a clean production build locally (`/` and all `/api/*` are dynamic;
+    `/budgets`, `/reports`, `/transactions` are static client pages).
 - **Money columns switched from `Float` to `Decimal(12,2)`** (Postgres `numeric`)
   for exact money math. Migration `migrations/20260531191605_money_decimal`.
   - Prisma returns `Decimal` objects; added `src/lib/serialize.ts` to convert
@@ -63,3 +70,7 @@ All notable changes to Budgeteer. Format loosely follows
   flipping the datasource back to `sqlite`; resolved by reloading the file from
   disk. Runtime was never affected (the generated client + `DATABASE_URL` drive
   the app) — only `generate`/`migrate` need the file correct on disk.
+- **Deploying:** set `DATABASE_URL` (pooled) and `DIRECT_URL` (direct) as env vars
+  in the host (Vercel), not from `.env`. Vercel builds production from `main`, so
+  this branch must be merged there first. Apply future schema changes with
+  `prisma migrate deploy` (not `migrate dev`).
