@@ -1,0 +1,51 @@
+// Prisma schema for Budgeteer — a single-user personal finance tracker.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A spending/income bucket, e.g. "Groceries", "Salary".
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  // "income" categories never get budgets; kept simple as a plain string flag.
+  kind         String        @default("expense") // "income" | "expense"
+  transactions Transaction[]
+  budgets      Budget[]
+  createdAt    DateTime      @default(now())
+}
+
+// A single money movement: income or expense.
+model Transaction {
+  id         String   @id @default(cuid())
+  type       String // "income" | "expense"
+  amount     Float // stored as a positive number; `type` gives the direction
+  date       DateTime @default(now())
+  note       String?
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  @@index([date])
+  @@index([categoryId])
+}
+
+// A monthly spending limit for one category.
+// `month` is the first day of the month (UTC), e.g. 2026-05-01, for easy range queries.
+model Budget {
+  id         String   @id @default(cuid())
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  month      DateTime
+  limit      Float
+  createdAt  DateTime @default(now())
+
+  // One budget per category per month.
+  @@unique([categoryId, month])
+}
