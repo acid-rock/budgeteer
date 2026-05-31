@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
+import { todayDateString } from "@/lib/utils";
 
 async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories");
@@ -31,7 +32,6 @@ async function createTransaction(input: NewTransaction): Promise<Transaction> {
   return res.json();
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function TransactionForm() {
   const queryClient = useQueryClient();
@@ -42,7 +42,7 @@ export function TransactionForm() {
 
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(todayDateString());
   const [categoryId, setCategoryId] = useState("");
   const [note, setNote] = useState("");
 

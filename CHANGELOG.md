@@ -22,6 +22,15 @@ All notable changes to Budgeteer. Format loosely follows
   - Month picker, one row per expense category with set/update + remove.
   - New `BudgetRow` component.
 
+### Fixed
+- **Timezone: "current" month/day now use the app timezone (`Asia/Manila`),**
+  not UTC. Previously the Dashboard month and the transaction form's default date
+  were derived from UTC (`getUTCMonth`, `toISOString`), so early in the day in
+  PHT (UTC+8) they showed the *previous* day/month. New helpers `dateToMonthString`
+  / `todayDateString` (and `formatDate`) compute calendar values in `APP_TIME_ZONE`
+  via `Intl`, so they're correct in the browser, local dev, and on a UTC server
+  (Vercel). Month storage anchors (`monthStringToDate`/`monthRange`) stay UTC.
+
 ### Changed
 - **Deployment prep (Vercel).**
   - `build` script now runs `prisma generate && next build` so the Prisma client
