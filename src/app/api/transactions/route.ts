@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { serializeTransaction } from "@/lib/serialize";
 
 // GET /api/transactions — list transactions, newest first.
 // Optional ?month=YYYY-MM filter could be added later (TODO).
@@ -8,7 +9,7 @@ export async function GET() {
     orderBy: { date: "desc" },
     include: { category: true },
   });
-  return NextResponse.json(transactions);
+  return NextResponse.json(transactions.map(serializeTransaction));
 }
 
 // POST /api/transactions — create a transaction.
@@ -48,5 +49,5 @@ export async function POST(request: Request) {
     },
     include: { category: true },
   });
-  return NextResponse.json(transaction, { status: 201 });
+  return NextResponse.json(serializeTransaction(transaction), { status: 201 });
 }

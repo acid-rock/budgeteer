@@ -2,22 +2,26 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatCurrency, dateToMonthString, monthRange } from "@/lib/utils";
 
+// Render per-request: the dashboard reads live "this month" totals from the DB,
+// so it must not be statically prerendered/cached at build time.
+export const dynamic = "force-dynamic";
+
 // Dashboard: a quick read-only snapshot of the current month, rendered on the
 // server straight from the DB. Expand with charts/widgets later.
 export default async function DashboardPage() {
   const month = dateToMonthString();
   const { start, end } = monthRange(month);
 
-  const transactions = await prisma.transaction.findMany({
+  // Sum in the database (exact Decimal), then convert to numbers for display.
+  const totalsByType = await prisma.transaction.groupBy({
+    by: ["type"],
     where: { date: { gte: start, lt: end } },
+    _sum: { amount: true },
   });
-
-  const totalIncome = transactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+  const sumForType = (type: string) =>
+    Number(totalsByType.find((g) => g.type === type)?._sum.amount ?? 0);
+  const totalIncome = sumForType("income");
+  const totalExpenses = sumForType("expense");
   const netSavings = totalIncome - totalExpenses;
 
   const cards = [

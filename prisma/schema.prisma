@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // A spending/income bucket, e.g. "Groceries", "Salary".
@@ -25,7 +26,7 @@ model Category {
 model Transaction {
   id         String   @id @default(cuid())
   type       String // "income" | "expense"
-  amount     Float // stored as a positive number; `type` gives the direction
+  amount     Decimal  @db.Decimal(12, 2) // positive; `type` gives the direction
   date       DateTime @default(now())
   note       String?
   category   Category @relation(fields: [categoryId], references: [id])
@@ -43,7 +44,7 @@ model Budget {
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId String
   month      DateTime
-  limit      Float
+  limit      Decimal  @db.Decimal(12, 2)
   createdAt  DateTime @default(now())
 
   // One budget per category per month.

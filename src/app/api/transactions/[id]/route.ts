@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { serializeTransaction } from "@/lib/serialize";
 
 // PATCH /api/transactions/:id — update a transaction.
 // Body may contain any of: { type, amount, date, categoryId, note }.
@@ -57,7 +58,7 @@ export async function PATCH(
       data,
       include: { category: true },
     });
-    return NextResponse.json(transaction);
+    return NextResponse.json(serializeTransaction(transaction));
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&

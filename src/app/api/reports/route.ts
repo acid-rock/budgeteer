@@ -11,32 +11,37 @@ export async function GET(request: Request) {
   const month = searchParams.get("month") ?? dateToMonthString();
   const { start, end } = monthRange(month);
 
-  // Pull everything for the month in parallel.
-  const [transactions, budgets, categories] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { date: { gte: start, lt: end } },
-    }),
-    prisma.budget.findMany({ where: { month: start } }),
-    prisma.category.findMany(),
-  ]);
+  const dateRange = { date: { gte: start, lt: end } };
 
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  const spentByCategory = new Map<string, number>();
+  // Aggregate in the database so the sums stay exact (Decimal), then convert
+  // the final totals to plain numbers for the response.
+  const [totalsByType, spendByCategory, budgets, categories] =
+    await Promise.all([
+      prisma.transaction.groupBy({
+        by: ["type"],
+        where: dateRange,
+        _sum: { amount: true },
+      }),
+      prisma.transaction.groupBy({
+        by: ["categoryId"],
+        where: { ...dateRange, type: "expense" },
+        _sum: { amount: true },
+      }),
+      prisma.budget.findMany({ where: { month: start } }),
+      prisma.category.findMany(),
+    ]);
 
-  for (const t of transactions) {
-    if (t.type === "income") {
-      totalIncome += t.amount;
-    } else {
-      totalExpenses += t.amount;
-      spentByCategory.set(
-        t.categoryId,
-        (spentByCategory.get(t.categoryId) ?? 0) + t.amount
-      );
-    }
-  }
+  const sumForType = (type: string) =>
+    Number(totalsByType.find((g) => g.type === type)?._sum.amount ?? 0);
+  const totalIncome = sumForType("income");
+  const totalExpenses = sumForType("expense");
 
-  const limitByCategory = new Map(budgets.map((b) => [b.categoryId, b.limit]));
+  const spentByCategory = new Map(
+    spendByCategory.map((g) => [g.categoryId, Number(g._sum.amount ?? 0)])
+  );
+  const limitByCategory = new Map(
+    budgets.map((b) => [b.categoryId, Number(b.limit)])
+  );
 
   // Build a row for every expense category that has either spend or a budget.
   const byCategory: CategoryReportRow[] = categories

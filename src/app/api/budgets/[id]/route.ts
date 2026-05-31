@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { serializeBudget } from "@/lib/serialize";
 
 // PATCH /api/budgets/:id — update a budget's limit.
 // Body: { limit }
@@ -27,7 +28,7 @@ export async function PATCH(
       data: { limit: numericLimit },
       include: { category: true },
     });
-    return NextResponse.json(budget);
+    return NextResponse.json(serializeBudget(budget));
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&

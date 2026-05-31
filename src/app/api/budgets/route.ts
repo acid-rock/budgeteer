@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { monthStringToDate } from "@/lib/utils";
+import { serializeBudget } from "@/lib/serialize";
 
 // GET /api/budgets?month=YYYY-MM — list budgets, optionally filtered by month.
 export async function GET(request: Request) {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     include: { category: true },
     orderBy: { month: "desc" },
   });
-  return NextResponse.json(budgets);
+  return NextResponse.json(budgets.map(serializeBudget));
 }
 
 // POST /api/budgets — upsert a budget for a category + month (create or update).
@@ -43,5 +44,5 @@ export async function POST(request: Request) {
     update: { limit: numericLimit },
     include: { category: true },
   });
-  return NextResponse.json(budget, { status: 201 });
+  return NextResponse.json(serializeBudget(budget), { status: 201 });
 }
