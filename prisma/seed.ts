@@ -29,6 +29,9 @@ async function main() {
   const investments = await prisma.category.create({
     data: { name: "Investments", kind: "income" },
   });
+  const allowance = await prisma.category.create({
+    data: { name: "Allowance", kind: "income" },
+  });
 
   // Expense categories.
   const groceries = await prisma.category.create({
@@ -48,27 +51,12 @@ async function main() {
 
   // Monthly budgets for expense categories (peso amounts).
   await prisma.budget.createMany({
-    data: [
-      { categoryId: groceries.id, month, limit: 12000 },
-      { categoryId: rent.id, month, limit: 18000 },
-      { categoryId: dining.id, month, limit: 6000 },
-      { categoryId: transport.id, month, limit: 4000 },
-    ],
+    data: [],
   });
 
   // Sample transactions for the current month (peso amounts).
   await prisma.transaction.createMany({
-    data: [
-      { type: "income", amount: 45000, date: dayThisMonth(1), note: "Monthly pay", categoryId: salary.id },
-      { type: "income", amount: 12000, date: dayThisMonth(8), note: "Logo design gig", categoryId: freelance.id },
-      { type: "income", amount: 1500, date: dayThisMonth(15), note: "Dividend payout", categoryId: investments.id },
-      { type: "expense", amount: 18000, date: dayThisMonth(2), note: "Apartment rent", categoryId: rent.id },
-      { type: "expense", amount: 3200, date: dayThisMonth(3), note: "Weekly shop", categoryId: groceries.id },
-      { type: "expense", amount: 850, date: dayThisMonth(6), note: "Pizza night", categoryId: dining.id },
-      { type: "expense", amount: 1200, date: dayThisMonth(7), note: "Bus & jeepney load", categoryId: transport.id },
-      { type: "expense", amount: 2750, date: dayThisMonth(10), note: "Groceries", categoryId: groceries.id },
-      { type: "expense", amount: 600, date: dayThisMonth(12), note: "Lunch out", categoryId: dining.id },
-    ],
+    data: [],
   });
 
   console.log("Seed complete ✅");
