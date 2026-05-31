@@ -1,70 +1,96 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { dateToMonthString, formatCurrency } from "@/lib/utils";
+import { useState } from "react";
+import { dateToMonthString } from "@/lib/utils";
+import { BudgetRow } from "@/components/BudgetRow";
 import type { Budget, Category } from "@/types";
 
-// SKELETON PAGE — wired enough to show data, but the editing flow is a stub.
-// The Budgets API (GET/POST /api/budgets) already supports upserts.
+interface BudgetWithCategory extends Budget {
+  category?: Category;
+}
 
-async function fetchBudgets(month: string) {
+async function fetchExpenseCategories(): Promise<Category[]> {
+  const res = await fetch("/api/categories");
+  if (!res.ok) throw new Error("Failed to load categories");
+  const all = (await res.json()) as Category[];
+  // Budgets only apply to expense categories.
+  return all.filter((c) => c.kind === "expense");
+}
+
+async function fetchBudgets(month: string): Promise<BudgetWithCategory[]> {
   const res = await fetch(`/api/budgets?month=${month}`);
   if (!res.ok) throw new Error("Failed to load budgets");
-  return res.json() as Promise<(Budget & { category: Category })[]>;
+  return res.json();
 }
 
 export default function BudgetsPage() {
-  const month = dateToMonthString();
-  const { data: budgets, isLoading } = useQuery({
+  const [month, setMonth] = useState(dateToMonthString());
+
+  const { data: categories, isLoading: loadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchExpenseCategories,
+  });
+  const { data: budgets, isLoading: loadingBudgets } = useQuery({
     queryKey: ["budgets", month],
     queryFn: () => fetchBudgets(month),
   });
 
+  // Map categoryId -> existing budget for the selected month.
+  const budgetByCategory = new Map(
+    budgets?.map((b) => [b.categoryId, b]) ?? []
+  );
+
+  const loading = loadingCategories || loadingBudgets;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Budgets</h2>
-        <p className="text-sm text-slate-500">
-          Monthly spending limit per category ({month}).
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Budgets</h2>
+          <p className="text-sm text-slate-500">
+            Set a monthly spending limit per category.
+          </p>
+        </div>
+        <input
+          type="month"
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+        />
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <p className="text-sm text-slate-500">Loading budgets…</p>
+      ) : !categories || categories.length === 0 ? (
+        <p className="text-sm text-slate-500">
+          No expense categories yet — add one to set budgets.
+        </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-slate-500">
                 <th className="px-4 py-2 font-medium">Category</th>
-                <th className="px-4 py-2 text-right font-medium">Limit</th>
+                <th className="px-4 py-2 text-right font-medium">
+                  Monthly Limit
+                </th>
+                <th className="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {budgets?.map((b) => (
-                <tr
-                  key={b.id}
-                  className="border-b border-slate-100 last:border-0"
-                >
-                  <td className="px-4 py-2">{b.category?.name}</td>
-                  <td className="px-4 py-2 text-right">
-                    {formatCurrency(b.limit)}
-                  </td>
-                </tr>
+              {categories.map((c) => (
+                <BudgetRow
+                  key={c.id}
+                  category={c}
+                  budget={budgetByCategory.get(c.id)}
+                  month={month}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      {/* TODO: add an "edit budget" form here.
-          Wire a useMutation that POSTs { categoryId, month, limit } to
-          /api/budgets (it upserts), then invalidate ["budgets", month].
-          List all expense categories so limits can be set for ones without a
-          budget yet. */}
-      <p className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-        🚧 Editing budgets is not wired up yet — see the TODO in this file.
-      </p>
     </div>
   );
 }

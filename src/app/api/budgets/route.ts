@@ -15,9 +15,9 @@ export async function GET(request: Request) {
   return NextResponse.json(budgets);
 }
 
-// POST /api/budgets — upsert a budget for a category + month.
+// POST /api/budgets — upsert a budget for a category + month (create or update).
 // Body: { categoryId, month: "YYYY-MM", limit }
-// TODO: add PATCH/DELETE handlers when the Budgets UI grows.
+// By-id update/delete live in ./[id]/route.ts.
 export async function POST(request: Request) {
   const body = await request.json();
   const { categoryId, month, limit } = body;
