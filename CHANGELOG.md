@@ -22,6 +22,12 @@ All notable changes to Budgeteer. Format loosely follows
   - Month picker, one row per expense category with set/update + remove.
   - New `BudgetRow` component.
 
+### Added
+- **"Miscellaneous" category in both income and expense.** Required relaxing the
+  `Category.name` global unique to a composite `@@unique([name, kind])`, so the
+  same name can exist once per kind (migration
+  `migrations/20260601065524_category_unique_per_kind`). Seed adds both.
+
 ### Fixed
 - **Timezone: "current" month/day now use the app timezone (`Asia/Manila`),**
   not UTC. Previously the Dashboard month and the transaction form's default date
@@ -32,6 +38,12 @@ All notable changes to Budgeteer. Format loosely follows
   (Vercel). Month storage anchors (`monthStringToDate`/`monthRange`) stay UTC.
 
 ### Changed
+- **Seed is now idempotent and non-destructive.** Rewrote `prisma/seed.ts` to
+  `upsert` the baseline categories by `(name, kind)` and removed the
+  `deleteMany()` calls and all sample transactions/budgets. Re-running the seed
+  (or `migrate dev`) no longer wipes user-entered data; real data is added through
+  the app. (Previously the seed deleted all rows first, which could erase
+  transactions on any re-run.)
 - **Deployment prep (Vercel).**
   - `build` script now runs `prisma generate && next build` so the Prisma client
     is regenerated on every Vercel build (Vercel caches `node_modules`).

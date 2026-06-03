@@ -2,64 +2,37 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// First day of the current month (UTC) — used to anchor budgets and recent transactions.
-function startOfMonthUTC(d = new Date()): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
-
-// A date N days into the current month (UTC).
-function dayThisMonth(day: number): Date {
-  const base = startOfMonthUTC();
-  return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), day));
-}
+// Baseline category taxonomy. These are upserted by (name, kind), so the seed
+// is idempotent and NON-DESTRUCTIVE: it never deletes rows and is safe to re-run
+// anytime (including after a migration). No sample transactions or budgets are
+// created — real data is entered through the app.
+const categories: { name: string; kind: "income" | "expense" }[] = [
+  // Income
+  { name: "Salary", kind: "income" },
+  { name: "Freelance", kind: "income" },
+  { name: "Investments", kind: "income" },
+  { name: "Allowance", kind: "income" },
+  { name: "Miscellaneous", kind: "income" },
+  // Expense
+  { name: "Groceries", kind: "expense" },
+  { name: "Rent", kind: "expense" },
+  { name: "Dining Out", kind: "expense" },
+  { name: "Transport", kind: "expense" },
+  { name: "Miscellaneous", kind: "expense" },
+];
 
 async function main() {
-  // Start clean so the seed is idempotent.
-  await prisma.transaction.deleteMany();
-  await prisma.budget.deleteMany();
-  await prisma.category.deleteMany();
+  for (const { name, kind } of categories) {
+    await prisma.category.upsert({
+      where: { name_kind: { name, kind } },
+      create: { name, kind },
+      update: {}, // already exists → leave as-is (no overwrite, no delete)
+    });
+  }
 
-  // Income categories — distinct from the expense set below.
-  const salary = await prisma.category.create({
-    data: { name: "Salary", kind: "income" },
-  });
-  const freelance = await prisma.category.create({
-    data: { name: "Freelance", kind: "income" },
-  });
-  const investments = await prisma.category.create({
-    data: { name: "Investments", kind: "income" },
-  });
-  const allowance = await prisma.category.create({
-    data: { name: "Allowance", kind: "income" },
-  });
-
-  // Expense categories.
-  const groceries = await prisma.category.create({
-    data: { name: "Groceries", kind: "expense" },
-  });
-  const rent = await prisma.category.create({
-    data: { name: "Rent", kind: "expense" },
-  });
-  const dining = await prisma.category.create({
-    data: { name: "Dining Out", kind: "expense" },
-  });
-  const transport = await prisma.category.create({
-    data: { name: "Transport", kind: "expense" },
-  });
-
-  const month = startOfMonthUTC();
-
-  // Monthly budgets for expense categories (peso amounts).
-  await prisma.budget.createMany({
-    data: [],
-  });
-
-  // Sample transactions for the current month (peso amounts).
-  await prisma.transaction.createMany({
-    data: [],
-  });
-
-  console.log("Seed complete ✅");
+  console.log(
+    `Seed complete ✅  (${categories.length} categories upserted; no data deleted)`
+  );
 }
 
 main()

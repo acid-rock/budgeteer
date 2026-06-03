@@ -14,12 +14,16 @@ datasource db {
 // A spending/income bucket, e.g. "Groceries", "Salary".
 model Category {
   id           String        @id @default(cuid())
-  name         String        @unique
+  name         String
   // "income" categories never get budgets; kept simple as a plain string flag.
   kind         String        @default("expense") // "income" | "expense"
   transactions Transaction[]
   budgets      Budget[]
   createdAt    DateTime      @default(now())
+
+  // A name is unique per kind, so e.g. "Miscellaneous" can exist as both an
+  // income and an expense category.
+  @@unique([name, kind])
 }
 
 // A single money movement: income or expense.
