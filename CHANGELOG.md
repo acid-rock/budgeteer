@@ -23,12 +23,25 @@ All notable changes to Budgeteer. Format loosely follows
   - New `BudgetRow` component.
 
 ### Added
+- **Category CRUD.** New `/categories` page (added to the nav) to create, rename,
+  change kind, and delete categories, so reports can use a specific taxonomy
+  instead of dumping everything into "Miscellaneous".
+  - API: `POST /api/categories` (now returns 409 on duplicate name+kind),
+    `PATCH`/`DELETE /api/categories/:id`. Delete is blocked with a clear 409 if the
+    category is still used by any transaction or budget.
+  - New `CategoryRow` component (inline edit + delete); mutations invalidate the
+    shared `["categories"]` query so forms across the app stay in sync.
 - **"Miscellaneous" category in both income and expense.** Required relaxing the
   `Category.name` global unique to a composite `@@unique([name, kind])`, so the
   same name can exist once per kind (migration
   `migrations/20260601065524_category_unique_per_kind`). Seed adds both.
 
 ### Fixed
+- **Budgets page could show income categories** (budgets are expense-only). Cause:
+  it fetched under the shared `["categories"]` query key but filtered to expenses
+  *inside* the query fn, so when another page populated that cache with the full
+  list, Budgets rendered all kinds. Now it fetches the full list (consistent with
+  other pages) and filters to expenses in the component.
 - **Timezone: "current" month/day now use the app timezone (`Asia/Manila`),**
   not UTC. Previously the Dashboard month and the transaction form's default date
   were derived from UTC (`getUTCMonth`, `toISOString`), so early in the day in

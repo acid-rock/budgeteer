@@ -33,3 +33,6 @@ next-env.d.ts
 
 # log files
 *.log
+
+# claude code — personal/local settings (keep shared .claude/settings.json if added)
+.claude/settings.local.json

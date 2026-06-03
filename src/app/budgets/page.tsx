@@ -10,12 +10,13 @@ interface BudgetWithCategory extends Budget {
   category?: Category;
 }
 
-async function fetchExpenseCategories(): Promise<Category[]> {
+// Fetch the full list under the shared ["categories"] cache key (the same key
+// and shape other pages use). Filtering to expenses happens in the component —
+// doing it here would corrupt the shared cache for pages that need all kinds.
+async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories");
   if (!res.ok) throw new Error("Failed to load categories");
-  const all = (await res.json()) as Category[];
-  // Budgets only apply to expense categories.
-  return all.filter((c) => c.kind === "expense");
+  return res.json();
 }
 
 async function fetchBudgets(month: string): Promise<BudgetWithCategory[]> {
@@ -29,8 +30,12 @@ export default function BudgetsPage() {
 
   const { data: categories, isLoading: loadingCategories } = useQuery({
     queryKey: ["categories"],
-    queryFn: fetchExpenseCategories,
+    queryFn: fetchCategories,
   });
+
+  // Budgets apply to expense categories only.
+  const expenseCategories =
+    categories?.filter((c) => c.kind === "expense") ?? [];
   const { data: budgets, isLoading: loadingBudgets } = useQuery({
     queryKey: ["budgets", month],
     queryFn: () => fetchBudgets(month),
@@ -62,7 +67,7 @@ export default function BudgetsPage() {
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading budgets…</p>
-      ) : !categories || categories.length === 0 ? (
+      ) : expenseCategories.length === 0 ? (
         <p className="text-sm text-slate-500">
           No expense categories yet — add one to set budgets.
         </p>
@@ -79,7 +84,7 @@ export default function BudgetsPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.map((c) => (
+              {expenseCategories.map((c) => (
                 <BudgetRow
                   key={c.id}
                   category={c}
