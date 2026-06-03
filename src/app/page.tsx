@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { formatCurrency, dateToMonthString, monthRange } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  dateToMonthString,
+  monthRange,
+} from "@/lib/utils";
 
 // Render per-request: the dashboard reads live "this month" totals from the DB,
 // so it must not be statically prerendered/cached at build time.
@@ -33,6 +38,33 @@ export default async function DashboardPage() {
       tone: netSavings >= 0 ? "text-green-600" : "text-red-600",
     },
   ];
+
+  // Two essential at-a-glance lists: latest activity and where money is going.
+  const [recentTransactions, expenseByCategory] = await Promise.all([
+    prisma.transaction.findMany({
+      orderBy: { date: "desc" },
+      take: 5,
+      include: { category: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: { type: "expense", date: { gte: start, lt: end } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: "desc" } },
+      take: 5,
+    }),
+  ]);
+
+  // Resolve category names for the top-spending rows.
+  const topCategories = await prisma.category.findMany({
+    where: { id: { in: expenseByCategory.map((g) => g.categoryId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(topCategories.map((c) => [c.id, c.name]));
+  const topSpending = expenseByCategory.map((g) => ({
+    name: nameById.get(g.categoryId) ?? "—",
+    amount: Number(g._sum.amount ?? 0),
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,6 +100,87 @@ export default async function DashboardPage() {
         >
           View report
         </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Recent activity */}
+        <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-semibold">Recent activity</h3>
+            <Link
+              href="/transactions"
+              className="text-sm text-slate-500 hover:text-slate-900"
+            >
+              View all
+            </Link>
+          </div>
+          {recentTransactions.length === 0 ? (
+            <p className="text-sm text-slate-500">No transactions yet.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recentTransactions.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between py-2 text-sm"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {t.category?.name ?? "—"}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {formatDate(t.date)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                  </div>
+                  <span
+                    className={`font-medium ${
+                      t.type === "income" ? "text-green-600" : "text-slate-900"
+                    }`}
+                  >
+                    {t.type === "income" ? "+" : "−"}
+                    {formatCurrency(Number(t.amount))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Top spending this month */}
+        <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-semibold">Top spending</h3>
+            <span className="text-sm text-slate-500">{month}</span>
+          </div>
+          {topSpending.length === 0 ? (
+            <p className="text-sm text-slate-500">No expenses this month.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {topSpending.map((row) => {
+                const pct =
+                  totalExpenses > 0
+                    ? Math.round((row.amount / totalExpenses) * 100)
+                    : 0;
+                return (
+                  <li key={row.name} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{row.name}</span>
+                      <span className="font-medium">
+                        {formatCurrency(row.amount)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-slate-100">
+                      <div
+                        className="h-1.5 rounded-full bg-slate-900"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );
