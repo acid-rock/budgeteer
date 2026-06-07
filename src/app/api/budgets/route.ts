@@ -2,24 +2,27 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { monthStringToDate } from "@/lib/utils";
 import { serializeBudget } from "@/lib/serialize";
+import { getRequiredUser } from "@/lib/session";
 
-// GET /api/budgets?month=YYYY-MM — list budgets, optionally filtered by month.
 export async function GET(request: Request) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month");
 
   const budgets = await prisma.budget.findMany({
-    where: month ? { month: monthStringToDate(month) } : undefined,
+    where: { userId, ...(month ? { month: monthStringToDate(month) } : {}) },
     include: { category: true },
     orderBy: { month: "desc" },
   });
   return NextResponse.json(budgets.map(serializeBudget));
 }
 
-// POST /api/budgets — upsert a budget for a category + month (create or update).
-// Body: { categoryId, month: "YYYY-MM", limit }
-// By-id update/delete live in ./[id]/route.ts.
 export async function POST(request: Request) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await request.json();
   const { categoryId, month, limit } = body;
 
@@ -37,10 +40,18 @@ export async function POST(request: Request) {
     );
   }
 
+  // Verify the category belongs to this user.
+  const category = await prisma.category.findFirst({
+    where: { id: categoryId, userId },
+  });
+  if (!category) {
+    return NextResponse.json({ error: "Category not found" }, { status: 404 });
+  }
+
   const monthDate = monthStringToDate(month);
   const budget = await prisma.budget.upsert({
     where: { categoryId_month: { categoryId, month: monthDate } },
-    create: { categoryId, month: monthDate, limit: numericLimit },
+    create: { categoryId, month: monthDate, limit: numericLimit, userId },
     update: { limit: numericLimit },
     include: { category: true },
   });

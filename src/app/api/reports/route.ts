@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dateToMonthString, monthRange } from "@/lib/utils";
+import { getRequiredUser } from "@/lib/session";
 import type { CategoryReportRow, MonthlyReport } from "@/types";
 
-// GET /api/reports?month=YYYY-MM — monthly aggregation.
-// Returns total income, total expenses, net savings, and a per-category
-// breakdown with the budget limit (if any) alongside actual spend.
 export async function GET(request: Request) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month") ?? dateToMonthString();
   const { start, end } = monthRange(month);
 
-  const dateRange = { date: { gte: start, lt: end } };
+  const dateRange = { date: { gte: start, lt: end }, userId };
 
-  // Aggregate in the database so the sums stay exact (Decimal), then convert
-  // the final totals to plain numbers for the response.
   const [totalsByType, spendByCategory, budgets, categories] =
     await Promise.all([
       prisma.transaction.groupBy({
@@ -27,8 +26,8 @@ export async function GET(request: Request) {
         where: { ...dateRange, type: "expense" },
         _sum: { amount: true },
       }),
-      prisma.budget.findMany({ where: { month: start } }),
-      prisma.category.findMany(),
+      prisma.budget.findMany({ where: { month: start, userId } }),
+      prisma.category.findMany({ where: { userId } }),
     ]);
 
   const sumForType = (type: string) =>
@@ -43,7 +42,6 @@ export async function GET(request: Request) {
     budgets.map((b) => [b.categoryId, Number(b.limit)])
   );
 
-  // Build a row for every expense category that has either spend or a budget.
   const byCategory: CategoryReportRow[] = categories
     .filter(
       (c) =>
@@ -65,6 +63,5 @@ export async function GET(request: Request) {
     netSavings: totalIncome - totalExpenses,
     byCategory,
   };
-
   return NextResponse.json(report);
 }

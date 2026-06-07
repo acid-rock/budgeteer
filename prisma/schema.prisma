@@ -1,4 +1,4 @@
-// Prisma schema for Budgeteer — a single-user personal finance tracker.
+// Prisma schema for Budgeteer — a personal finance tracker.
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -11,6 +11,66 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─── Auth (Auth.js / NextAuth v5, Prisma adapter) ───────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts Account[]
+  sessions Session[]
+
+  // App data owned by this user.
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── App data ───────────────────────────────────────────────────────────────
+
 // A spending/income bucket, e.g. "Groceries", "Salary".
 model Category {
   id           String        @id @default(cuid())
@@ -21,9 +81,12 @@ model Category {
   budgets      Budget[]
   createdAt    DateTime      @default(now())
 
-  // A name is unique per kind, so e.g. "Miscellaneous" can exist as both an
-  // income and an expense category.
-  @@unique([name, kind])
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Each user gets their own taxonomy: same name can exist across users.
+  @@unique([userId, name, kind])
+  @@index([userId])
 }
 
 // A single money movement: income or expense.
@@ -37,8 +100,12 @@ model Transaction {
   categoryId String
   createdAt  DateTime @default(now())
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([date])
   @@index([categoryId])
+  @@index([userId])
 }
 
 // A monthly spending limit for one category.
@@ -51,6 +118,10 @@ model Budget {
   limit      Decimal  @db.Decimal(12, 2)
   createdAt  DateTime @default(now())
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // One budget per category per month.
   @@unique([categoryId, month])
+  @@index([userId])
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import {
   formatCurrency,
   formatDate,
@@ -14,13 +16,17 @@ export const dynamic = "force-dynamic";
 // Dashboard: a quick read-only snapshot of the current month, rendered on the
 // server straight from the DB. Expand with charts/widgets later.
 export default async function DashboardPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
+
   const month = dateToMonthString();
   const { start, end } = monthRange(month);
 
   // Sum in the database (exact Decimal), then convert to numbers for display.
   const totalsByType = await prisma.transaction.groupBy({
     by: ["type"],
-    where: { date: { gte: start, lt: end } },
+    where: { userId, date: { gte: start, lt: end } },
     _sum: { amount: true },
   });
   const sumForType = (type: string) =>
@@ -42,13 +48,14 @@ export default async function DashboardPage() {
   // Two essential at-a-glance lists: latest activity and where money is going.
   const [recentTransactions, expenseByCategory] = await Promise.all([
     prisma.transaction.findMany({
+      where: { userId },
       orderBy: { date: "desc" },
       take: 5,
       include: { category: true },
     }),
     prisma.transaction.groupBy({
       by: ["categoryId"],
-      where: { type: "expense", date: { gte: start, lt: end } },
+      where: { userId, type: "expense", date: { gte: start, lt: end } },
       _sum: { amount: true },
       orderBy: { _sum: { amount: "desc" } },
       take: 5,
@@ -57,7 +64,7 @@ export default async function DashboardPage() {
 
   // Resolve category names for the top-spending rows.
   const topCategories = await prisma.category.findMany({
-    where: { id: { in: expenseByCategory.map((g) => g.categoryId) } },
+    where: { userId, id: { in: expenseByCategory.map((g) => g.categoryId) } },
     select: { id: true, name: true },
   });
   const nameById = new Map(topCategories.map((c) => [c.id, c.name]));

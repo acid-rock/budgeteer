@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getRequiredUser } from "@/lib/session";
 
-// PATCH /api/categories/:id — rename or change kind. Body: { name?, kind? }.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const body = await request.json();
   const data: Prisma.CategoryUpdateInput = {};
@@ -18,7 +21,6 @@ export async function PATCH(
     }
     data.name = name;
   }
-
   if (body.kind !== undefined) {
     if (body.kind !== "income" && body.kind !== "expense") {
       return NextResponse.json(
@@ -30,19 +32,19 @@ export async function PATCH(
   }
 
   try {
-    const category = await prisma.category.update({ where: { id }, data });
+    const category = await prisma.category.update({
+      where: { id, userId },
+      data,
+    });
     return NextResponse.json(category);
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === "P2025") {
-        return NextResponse.json(
-          { error: "Category not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Category not found" }, { status: 404 });
       }
       if (e.code === "P2002") {
         return NextResponse.json(
-          { error: "A category with that name and kind already exists" },
+          { error: "You already have a category with that name and kind" },
           { status: 409 }
         );
       }
@@ -51,20 +53,20 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/categories/:id — remove a category, but only if nothing uses it.
-// Categories are referenced by transactions and budgets; deleting one in use
-// would orphan/break those rows, so we block it with a clear message instead.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
 
+  // Count usage scoped to this user's data only.
   const [txCount, budgetCount] = await Promise.all([
-    prisma.transaction.count({ where: { categoryId: id } }),
-    prisma.budget.count({ where: { categoryId: id } }),
+    prisma.transaction.count({ where: { categoryId: id, userId } }),
+    prisma.budget.count({ where: { categoryId: id, userId } }),
   ]);
-
   if (txCount > 0 || budgetCount > 0) {
     return NextResponse.json(
       {
@@ -75,17 +77,11 @@ export async function DELETE(
   }
 
   try {
-    await prisma.category.delete({ where: { id } });
+    await prisma.category.delete({ where: { id, userId } });
     return new NextResponse(null, { status: 204 });
   } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
     throw e;
   }

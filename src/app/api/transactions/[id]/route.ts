@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeTransaction } from "@/lib/serialize";
+import { getRequiredUser } from "@/lib/session";
 
-// PATCH /api/transactions/:id — update a transaction.
-// Body may contain any of: { type, amount, date, categoryId, note }.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const body = await request.json();
   const data: Prisma.TransactionUpdateInput = {};
@@ -22,7 +24,6 @@ export async function PATCH(
     }
     data.type = body.type;
   }
-
   if (body.amount !== undefined) {
     const numericAmount = Number(body.amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -33,15 +34,8 @@ export async function PATCH(
     }
     data.amount = numericAmount;
   }
-
-  if (body.date !== undefined) {
-    data.date = new Date(body.date);
-  }
-
-  if (body.note !== undefined) {
-    data.note = body.note || null;
-  }
-
+  if (body.date !== undefined) data.date = new Date(body.date);
+  if (body.note !== undefined) data.note = body.note || null;
   if (body.categoryId !== undefined) {
     if (!body.categoryId || typeof body.categoryId !== "string") {
       return NextResponse.json(
@@ -49,48 +43,46 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    // Verify the new category belongs to this user.
+    const category = await prisma.category.findFirst({
+      where: { id: body.categoryId, userId },
+    });
+    if (!category) {
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+    }
     data.category = { connect: { id: body.categoryId } };
   }
 
   try {
+    // where: { id, userId } enforces ownership at the DB level.
     const transaction = await prisma.transaction.update({
-      where: { id },
+      where: { id, userId },
       data,
       include: { category: true },
     });
     return NextResponse.json(serializeTransaction(transaction));
   } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
-      );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
     throw e;
   }
 }
 
-// DELETE /api/transactions/:id — remove a transaction.
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getRequiredUser();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   try {
-    await prisma.transaction.delete({ where: { id } });
+    await prisma.transaction.delete({ where: { id, userId } });
     return new NextResponse(null, { status: 204 });
   } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
-      );
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
     throw e;
   }
