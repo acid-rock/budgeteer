@@ -7,7 +7,9 @@ import {
   formatDate,
   dateToMonthString,
   monthRange,
+  todayDateString,
 } from "@/lib/utils";
+import { ActivityGrid } from "@/components/ActivityGrid";
 
 // Render per-request: the dashboard reads live "this month" totals from the DB,
 // so it must not be statically prerendered/cached at build time.
@@ -45,8 +47,16 @@ export default async function DashboardPage() {
     },
   ];
 
+  // Cutoff for the 12-week activity grid: Sunday of the week 11 weeks ago.
+  const todayStr = todayDateString();
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const todayUTC = new Date(Date.UTC(ty, tm - 1, td));
+  const twelveWeeksAgo = new Date(
+    todayUTC.getTime() - (todayUTC.getUTCDay() + 357) * 86_400_000
+  );
+
   // Two essential at-a-glance lists: latest activity and where money is going.
-  const [recentTransactions, expenseByCategory] = await Promise.all([
+  const [recentTransactions, expenseByCategory, activityRows] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId },
       orderBy: { date: "desc" },
@@ -60,7 +70,15 @@ export default async function DashboardPage() {
       orderBy: { _sum: { amount: "desc" } },
       take: 5,
     }),
+    prisma.transaction.findMany({
+      where: { userId, date: { gte: twelveWeeksAgo } },
+      select: { date: true },
+    }),
   ]);
+
+  const activeDateSet = new Set(
+    activityRows.map((t) => t.date.toISOString().slice(0, 10))
+  );
 
   // Resolve category names for the top-spending rows.
   const topCategories = await prisma.category.findMany({
@@ -108,6 +126,14 @@ export default async function DashboardPage() {
           View report
         </Link>
       </div>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold">Activity</h3>
+          <span className="text-sm text-slate-500">Last year</span>
+        </div>
+        <ActivityGrid activeDates={activeDateSet} />
+      </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Recent activity */}
