@@ -3,6 +3,28 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-12
+
+### Added
+- **Activity streak grid (GitHub-style).** New `ActivityGrid` component
+  (`src/components/ActivityGrid.tsx`) renders a 52-week (1-year) grid of day
+  squares on the Dashboard. Each square is filled dark (`bg-slate-900`) if the
+  user logged at least one transaction that day, and light (`bg-slate-100`)
+  otherwise. Future days in the current week appear as `bg-slate-50`. Month
+  labels and Mon/Wed/Fri day-of-week labels match GitHub's contribution graph
+  layout. Grid is anchored to `Asia/Manila` via the existing `todayDateString()`
+  helper so dates stay consistent regardless of server timezone.
+  - Dashboard gains one parallel DB query (transaction dates over the past year
+    → `Set<string>`) and a new "Activity / Last year" card section between the
+    CTA buttons and the two-column widgets.
+- **Dev/prod OAuth environment split.**
+  - `.env.local` (gitignored) — holds dev-only `AUTH_GITHUB_ID` /
+    `AUTH_GITHUB_SECRET` that override `.env` locally. Production (Vercel) never
+    loads this file and continues using its own env vars.
+  - `.env.example` (committed) — documents all required env vars with
+    placeholder values and instructions for creating separate dev vs. prod
+    GitHub OAuth Apps.
+
 ## [Unreleased] — 2026-05-31
 
 ### Added
