@@ -9,54 +9,88 @@ export default async function LoginPage({
   const isProviderConflict = params.error === "AccountExistsWithDifferentProvider";
 
   return (
-    <div className="mx-auto mt-10 flex max-w-sm flex-col gap-6 rounded-lg border border-slate-200 bg-white p-6">
-      <div>
-        <h2 className="text-lg font-semibold">Sign in to Budgeteer</h2>
-        <p className="text-sm text-slate-500">
-          Choose a sign-in method to continue.
-        </p>
-      </div>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        className="mint-panel"
+        style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", gap: 22 }}
+      >
+        <div className="mint-brand" style={{ justifyContent: "center" }}>
+          <div className="mint-tile">
+            <b>B</b>
+            <i />
+          </div>
+          <span className="mint-word">Budgeteer</span>
+        </div>
 
-      {isProviderConflict && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          <p className="font-medium">Account already exists</p>
-          <p className="mt-1">
-            This email is registered with{" "}
-            <span className="font-medium capitalize">{params.provider ?? "another provider"}</span>.
-            Sign in with that provider first, then connect additional ones from{" "}
-            <span className="font-medium">Settings</span>.
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: 22, margin: 0 }}>Sign in to Budgeteer</h1>
+          <p className="mint-muted" style={{ marginTop: 4 }}>
+            Choose a sign-in method to continue.
           </p>
         </div>
-      )}
 
-      <div className="flex flex-col gap-3">
-        <form
-          action={async () => {
-            "use server";
-            await signIn("github", { redirectTo: "/" });
-          }}
-        >
-          <button
-            type="submit"
-            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+        {isProviderConflict && (
+          <div
+            style={{
+              borderRadius: 12,
+              border: "1px solid rgba(216,85,60,0.3)",
+              background: "rgba(216,85,60,0.08)",
+              padding: 14,
+              fontSize: 13,
+              color: "var(--neg)",
+            }}
           >
-            Sign in with GitHub
-          </button>
-        </form>
+            <p style={{ fontWeight: 700, margin: 0 }}>Account already exists</p>
+            <p style={{ marginTop: 4 }}>
+              This email is registered with{" "}
+              <span style={{ fontWeight: 700, textTransform: "capitalize" }}>
+                {params.provider ?? "another provider"}
+              </span>
+              . Sign in with that provider first, then connect additional ones
+              from Settings.
+            </p>
+          </div>
+        )}
 
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/" });
-          }}
-        >
-          <button
-            type="submit"
-            className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <form
+            action={async () => {
+              "use server";
+              await signIn("github", { redirectTo: "/" });
+            }}
           >
-            Sign in with Google
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="mint-btn pri"
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Sign in with GitHub
+            </button>
+          </form>
+
+          <form
+            action={async () => {
+              "use server";
+              await signIn("google", { redirectTo: "/" });
+            }}
+          >
+            <button
+              type="submit"
+              className="mint-btn"
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Sign in with Google
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

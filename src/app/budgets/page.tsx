@@ -49,38 +49,34 @@ export default function BudgetsPage() {
   const loading = loadingCategories || loadingBudgets;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <>
+      <div className="mint-head">
         <div>
-          <h2 className="text-lg font-semibold">Budgets</h2>
-          <p className="text-sm text-slate-500">
-            Set a monthly spending limit per category.
-          </p>
+          <h1>Budgets</h1>
+          <p>Set a monthly spending limit per category.</p>
         </div>
         <input
           type="month"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="mint-input"
         />
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-500">Loading budgets…</p>
+        <p className="mint-muted">Loading budgets…</p>
       ) : expenseCategories.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="mint-muted">
           No expense categories yet — add one to set budgets.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="mint-tablewrap">
+          <table className="mint-table">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="px-4 py-2 font-medium">Category</th>
-                <th className="px-4 py-2 text-right font-medium">
-                  Monthly Limit
-                </th>
-                <th className="px-4 py-2 text-right font-medium">Actions</th>
+              <tr>
+                <th>Category</th>
+                <th className="r">Monthly limit</th>
+                <th className="r">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -96,6 +92,6 @@ export default function BudgetsPage() {
           </table>
         </div>
       )}
-    </div>
+    </>
   );
 }

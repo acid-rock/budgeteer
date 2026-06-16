@@ -1,12 +1,1026 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+/* ── Sprout design system ──────────────────────────────────────────────────
+   Green-forward theme. Fonts come from next/font (--font-dm, --font-grotesk).
+   Design tokens live on .mint, which wraps the whole app in layout.tsx. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f3f6f0;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+.mint {
+  --bg: #f3f6f0;
+  --card: #ffffff;
+  --ink: #16241c;
+  --muted: #62756a;
+  --line: #e5eae1;
+  --green: #0e5a3c;
+  --green2: #127a4f;
+  --lime: #bff24a;
+  --pos: #0e8a50;
+  --neg: #d8553c;
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  width: 100%;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.mint * {
+  box-sizing: border-box;
+}
+.mint h1,
+.mint h2,
+.mint h3,
+.mint .num {
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+}
+.mint .num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* top bar */
+.mint-top {
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.mint-top-inner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 18px 36px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.mint-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.mint-tile {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(14, 90, 60, 0.28);
+}
+.mint-tile b {
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  color: var(--lime);
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1;
+}
+.mint-tile i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  right: 7px;
+  top: 7px;
+}
+.mint-word {
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+.mint-nav {
+  display: flex;
+  gap: 4px;
+}
+.mint-nav a {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 9px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mint-nav a.on {
+  background: var(--green);
+  color: #fff;
+}
+.mint-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mint-month {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 8px 13px;
+  border-radius: 10px;
+}
+.mint-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #bff24a, #0e8a50);
+  color: #0b3a26;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  border: none;
+  cursor: pointer;
+}
+
+/* page */
+.mint-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 36px 40px;
+}
+.mint-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.mint-head h1 {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0;
+  white-space: nowrap;
+}
+.mint-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.mint-cta {
+  display: flex;
+  gap: 10px;
+}
+.mint-btn {
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 17px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mint-btn.pri {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.mint-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mint-btn.danger {
+  border-color: rgba(216, 85, 60, 0.4);
+  color: var(--neg);
+  background: var(--card);
+}
+
+/* form inputs */
+.mint-input {
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 13px;
+  outline: none;
+}
+.mint-input:focus {
+  border-color: var(--green2);
+}
+.mint-input::placeholder {
+  color: var(--muted);
+}
+.mint-tablewrap {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 6px 22px;
+  overflow-x: auto;
+}
+.mint-formgrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+.mint-err {
+  color: var(--neg);
+  font-size: 13px;
+  font-weight: 600;
+}
+.mint-muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* stat cards */
+.mint-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.mint-stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+}
+.mint-stat.feat {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+  position: relative;
+  overflow: hidden;
+}
+.mint-stat.feat::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  bottom: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(191, 242, 74, 0.16);
+}
+.mint-stat .lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.mint-stat.feat .lbl {
+  color: rgba(255, 255, 255, 0.8);
+}
+.mint-stat .val {
+  font-size: 30px;
+  font-weight: 700;
+}
+.mint-stat .sub {
+  font-size: 12.5px;
+  margin-top: 8px;
+  color: var(--muted);
+}
+.mint-stat.feat .sub {
+  color: rgba(255, 255, 255, 0.78);
+}
+.mint-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.mint-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+/* panels */
+.mint-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.mint-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+}
+.mint-ph {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.mint-ph h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.mint-ph .vall {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green2);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* donut */
+.mint-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.mint-donut {
+  position: relative;
+  flex: 0 0 auto;
+}
+.mint-donut .ctr {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.mint-donut .ctr .b {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mint-donut .ctr .t {
+  font-size: 21px;
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+}
+.mint-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.mint-leg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.mint-leg .nm {
+  font-weight: 500;
+}
+.mint-leg .am {
+  margin-left: auto;
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* bars (cashflow) */
+.mint-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  height: 140px;
+  padding-top: 10px;
+}
+.mint-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.mint-bar .b {
+  width: 100%;
+  border-radius: 6px 6px 3px 3px;
+  background: linear-gradient(180deg, #bff24a, #7fce3e);
+  min-height: 4px;
+}
+.mint-bar.hi .b {
+  background: linear-gradient(180deg, var(--green2), var(--green));
+}
+.mint-bar .d {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* activity list rows */
+.mint-act {
+  display: flex;
+  flex-direction: column;
+}
+.mint-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.mint-row:last-child {
+  border-bottom: none;
+}
+.mint-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.mint-ic .g {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+.mint-row .nm {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.mint-row .mt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.mint-row .am {
+  margin-left: auto;
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 14.5px;
+}
+.mint-row .am.pos {
+  color: var(--pos);
+}
+
+/* top spending bars */
+.mint-tlist {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.mint-trow .top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.mint-trow .nm {
+  font-weight: 500;
+}
+.mint-trow .am {
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.mint-track {
+  height: 9px;
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.mint-track .fill {
+  height: 100%;
+  border-radius: 6px;
+}
+
+/* reports table */
+.mint-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mint-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 18px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.mint-table th.r,
+.mint-table td.r {
+  text-align: right;
+}
+.mint-table td {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.mint-table tr:last-child td {
+  border-bottom: none;
+}
+.mint-table .nm {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.mint-table .am {
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.mint-cell-bar {
+  width: 120px;
+}
+.mint-cell-bar .track {
+  height: 7px;
+  border-radius: 5px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.mint-cell-bar .fill {
+  height: 100%;
+}
+.mint-nobudget {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-style: italic;
+}
+
+/* toolbar / filters */
+.mint-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.mint-search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 14px;
+}
+.mint-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  width: 100%;
+}
+.mint-search input::placeholder {
+  color: var(--muted);
+}
+.mint-mag {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+  position: relative;
+  flex: 0 0 auto;
+}
+.mint-mag::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 2px;
+  background: var(--muted);
+  right: -4px;
+  bottom: -1px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+.mint-select {
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mint-seg {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 3px;
+  gap: 2px;
+}
+.mint-seg button {
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  padding: 7px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mint-seg button.on {
+  background: var(--green);
+  color: #fff;
+}
+
+/* transactions grouped */
+.mint-daylabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 16px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mint-daygroup:first-child .mint-daylabel {
+  padding-top: 2px;
+}
+.mint-daylabel .sum {
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mint-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.mint-tag .d {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* summary chips */
+.mint-chips {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.mint-chip {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 18px;
+  flex: 1;
+}
+.mint-chip .k {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mint-chip .v {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+/* budgets */
+.mint-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.mint-brow .top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.mint-brow .nm {
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+}
+.mint-brow .nums {
+  margin-left: auto;
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 14.5px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.mint-brow .nums b {
+  font-weight: 700;
+}
+.mint-brow .nums .of {
+  color: var(--muted);
+  font-weight: 600;
+}
+.mint-btrack {
+  height: 11px;
+  border-radius: 7px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.mint-btrack .fill {
+  height: 100%;
+  border-radius: 7px;
+}
+.mint-brow .foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mint-over {
+  color: var(--neg);
+  font-weight: 700;
+}
+.mint-left {
+  color: var(--pos);
+  font-weight: 700;
+}
+
+/* category cards */
+.mint-catgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.mint-catcard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.mint-catcard .hd {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 16px;
+}
+.mint-catcard .sw {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.mint-catcard .sw .g {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+}
+.mint-catcard .nm {
+  font-weight: 700;
+  font-size: 15.5px;
+  white-space: nowrap;
+}
+.mint-catcard .ty {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  margin-top: 4px;
+  display: inline-block;
+}
+.mint-catcard .ty.exp {
+  background: rgba(216, 85, 60, 0.12);
+  color: var(--neg);
+}
+.mint-catcard .ty.inc {
+  background: rgba(14, 138, 80, 0.12);
+  color: var(--pos);
+}
+.mint-catcard .stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+.mint-catcard .stat .k {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mint-catcard .stat .v {
+  font-family: var(--font-grotesk), "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+}
+
+/* activity heatmap — theme-agnostic layout; colors/sizing via CSS vars */
+.heat {
+  --hc: 13px;
+  --hg: 3px;
+  --hl: 30px;
+  --hcr: 3px;
+  --heat-muted: #62756a;
+}
+.heat-months {
+  display: grid;
+  grid-template-columns: repeat(53, 1fr);
+  gap: var(--hg);
+  margin-left: calc(var(--hl) + var(--hg));
+  margin-bottom: 7px;
+}
+.heat-months span {
+  grid-row: 1;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--heat-muted);
+}
+.heat-body {
+  display: flex;
+  gap: var(--hg);
+}
+.heat-days {
+  width: var(--hl);
+  display: grid;
+  grid-template-rows: repeat(7, var(--hc));
+  gap: var(--hg);
+  flex: 0 0 auto;
+}
+.heat-days span {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: var(--hc);
+  color: var(--heat-muted);
+}
+.heat-cells {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: repeat(7, var(--hc));
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--hg);
+}
+.heat-cells i {
+  border-radius: var(--hcr);
+  display: block;
+}
+.heat-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 11px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--heat-muted);
+}
+.heat-legend i {
+  width: var(--hc);
+  height: var(--hc);
+  border-radius: var(--hcr);
+  display: block;
+}
+
+/* ── responsive ────────────────────────────────────────────────────────────
+   Desktop-first: the base rules above are the wide layout; these step it down.
+   The `.split` ratio is applied only at wide widths so it collapses cleanly. */
+@media (min-width: 821px) {
+  .mint-grid.split {
+    grid-template-columns: 0.8fr 1.3fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .mint-top-inner,
+  .mint-page {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (max-width: 820px) {
+  .mint-stats,
+  .mint-grid,
+  .mint-catgrid {
+    grid-template-columns: 1fr;
+  }
+  .mint-formgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .mint-top-inner {
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    padding: 14px 18px;
+  }
+  /* Nav drops to its own full-width row and scrolls sideways if it overflows. */
+  .mint-nav {
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mint-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .mint-nav a {
+    white-space: nowrap;
+  }
+  .mint-page {
+    padding: 22px 18px 32px;
+  }
+  .mint-catgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .mint-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .mint-head h1 {
+    white-space: normal;
+    font-size: 23px;
+  }
+  .mint-cta {
+    width: 100%;
+  }
+  .mint-donut-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+  .mint-legend {
+    width: 100%;
+  }
+  .mint-chips {
+    flex-wrap: wrap;
+  }
+  .mint-chip {
+    min-width: calc(50% - 7px);
+  }
+  .mint-catgrid,
+  .mint-formgrid {
+    grid-template-columns: 1fr;
+  }
+  .mint-stat .val {
+    font-size: 26px;
+  }
+  /* The month pill is non-functional today (see TopBar TODO); hide on phones. */
+  .mint-month {
+    display: none;
+  }
+  /* Keep heatmap cells square and let the grid scroll sideways instead of
+     squashing 53 weeks into a phone's width. */
+  .heat {
+    overflow-x: auto;
+  }
+  .heat-body,
+  .heat-months {
+    width: max-content;
+  }
+  .heat-cells {
+    flex: 0 0 auto;
+    grid-auto-columns: var(--hc);
+  }
+  .heat-months {
+    grid-template-columns: repeat(53, var(--hc));
+  }
 }
