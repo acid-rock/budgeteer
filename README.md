@@ -8,11 +8,21 @@ monthly budget workflow.
 | Layer | Technology |
 |---|---|
 | Framework | Next.js 16 (App Router) + TypeScript |
-| Styling | Tailwind CSS v4 |
+| Styling | Tailwind CSS v4 + "Sprout" design system (`globals.css`) |
+| Fonts | DM Sans + Space Grotesk (via `next/font`) |
 | Auth | NextAuth v5 (GitHub + Google OAuth) |
 | Database | PostgreSQL via Neon (serverless) |
 | ORM | Prisma (pooled + direct connection) |
 | Client data | TanStack Query v5 |
+
+## Design
+
+The UI uses the **Sprout** theme — a green-forward palette (`#0E5A3C` with a lime
+`#BFF24A` accent on an off-white `#F3F6F0` canvas). The design system is a set of
+`.mint-*` component classes in `src/app/globals.css`, scoped under a `.mint`
+wrapper applied in `layout.tsx`, with tokens exposed as CSS variables. The layout
+is responsive down to phone widths (grids collapse, top-bar nav scrolls, the
+activity heatmap scrolls sideways).
 
 ## Getting started
 
@@ -82,16 +92,18 @@ npm run dev   # http://localhost:3000
 prisma/              schema, migrations, seed
 src/
   app/               routes + API
-    (auth)/          login page
     api/             REST endpoints (transactions, categories, budgets, reports)
     budgets/         monthly budget limits per category
     categories/      category management
+    login/           OAuth sign-in
     reports/         monthly report (income, expenses, net savings)
-    settings/        user settings + provider linking
+    settings/        user settings + provider linking + sign out
     transactions/    transaction list + add form
+    globals.css      Sprout design system (.mint-* classes, tokens)
+    layout.tsx       app shell: fonts, top bar, .mint wrapper
     page.tsx         dashboard (server-rendered)
-  components/        shared UI components
-  lib/               Prisma client, utilities, session helpers
+  components/        shared UI: TopBar, Donut, ActivityGrid, row/form components
+  lib/               Prisma client, utils, colors (chart palette), session helpers
   types/             shared TypeScript interfaces
 ```
 
@@ -103,6 +115,8 @@ src/
 | Transactions — add, edit, delete | Done |
 | Categories — create, rename, change kind, delete | Done |
 | Budgets — set/update/remove monthly limits per category | Done |
-| Dashboard — current-month totals, activity streak grid, recent activity, top spending | Done |
-| Reports — monthly totals + per-category breakdown table | Done |
+| Dashboard — totals, spending donut, 14-day bars, activity heatmap, recent + top spending | Done |
+| Reports — totals, donut breakdown, per-category share table | Done |
+| Sprout visual redesign + responsive layout | Done |
+| Top-bar month pill — make it actually switch the active month | TODO |
 | Reports — budget-vs-actual progress bar visualization | TODO |

@@ -3,6 +3,49 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-16
+
+### Changed
+- **Full visual redesign — the "Sprout" theme.** Green-forward palette
+  (`#0E5A3C` / lime `#BFF24A` on an off-white `#F3F6F0` canvas), DM Sans for body
+  and Space Grotesk for headings/numbers (loaded via `next/font`). The design
+  system lives in `globals.css` as `.mint-*` component classes scoped under a
+  `.mint` app wrapper; tokens are CSS variables.
+  - **Chrome:** new full-width top bar (`src/components/TopBar.tsx`) with brand
+    tile, active-state nav, month pill, and an avatar linking to Settings. Replaces
+    the old narrow header — `Nav.tsx` and `UserMenu.tsx` were removed and sign-out
+    moved to the Settings page.
+  - **Dashboard:** greeting header, income/expenses/featured-net stat cards, a
+    spending-by-category **donut** (`src/components/Donut.tsx`), a **14-day daily
+    spending** bar chart, the activity heatmap, recent activity, and top-spending
+    bars. New server queries back the donut, daily series, and per-day activity
+    counts.
+  - **Activity heatmap** rebuilt to GitHub-style graduated green levels driven by
+    transaction *count* per day (was binary on/off), via `countByDate`.
+  - **Reports** redesigned with stat cards, a donut breakdown, and a share-bar
+    table. **Transactions / Budgets / Categories / Settings / Login** all
+    re-themed to the new system while keeping existing behavior.
+  - `src/lib/colors.ts` (new) — shared green chart palette + stable per-category
+    color.
+- **Responsive layout.** Breakpoints at 960 / 820 / 760 / 560px collapse the
+  multi-column grids to one column, wrap the top bar (nav becomes a scrollable
+  row), stack the page headers and donut, and let the heatmap scroll sideways on
+  phones. Grid ratios that were inline styles moved to classes (`.mint-grid.split`,
+  `.mint-formgrid`) so the media queries can override them.
+
+### Fixed
+- **Table header crowding** — `.mint-table th` had no top padding, so headers sat
+  flush against the card edge; added 18px.
+- **Broken table rows** — the Name column applied the flex `.nm` class directly to
+  a `<td>`, which overrode `display: table-cell` and misaligned row borders. Bold
+  styling is now applied without breaking table layout.
+- **Donut center figure overflow** — the total now auto-scales its font by length
+  (and the ring is thinner / circle larger) so 5–6 digit peso amounts fit inside.
+
+### Notes / TODO
+- The top-bar month pill is **display-only** — the caret implies a dropdown but
+  nothing is wired up yet (flagged with a TODO in `TopBar.tsx`; hidden on phones).
+
 ## [Unreleased] — 2026-06-12
 
 ### Added

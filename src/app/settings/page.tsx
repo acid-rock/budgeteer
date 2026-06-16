@@ -1,4 +1,4 @@
-import { auth, signIn } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
@@ -62,63 +62,83 @@ export default async function SettingsPage({
   });
 
   return (
-    <div className="flex max-w-lg flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Account Settings</h2>
-        <p className="text-sm text-slate-500">
-          Manage your profile and connected sign-in providers.
-        </p>
+    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <div className="mint-head">
+        <div>
+          <h1>Account settings</h1>
+          <p>Manage your profile and connected sign-in providers.</p>
+        </div>
       </div>
 
       {params.linked && (
-        <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+        <div
+          className="mint-panel"
+          style={{
+            background: "rgba(14,138,80,0.08)",
+            borderColor: "rgba(14,138,80,0.3)",
+            color: "var(--pos)",
+            fontWeight: 600,
+            fontSize: 14,
+            marginBottom: 16,
+          }}
+        >
           {params.linked} account connected successfully.
         </div>
       )}
 
       {/* Profile card */}
-      <section className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4">
+      <section
+        className="mint-panel"
+        style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}
+      >
         {user.image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.image}
             alt={user.name ?? ""}
-            className="h-12 w-12 rounded-full"
+            style={{ height: 48, width: 48, borderRadius: "50%" }}
           />
         )}
         <div>
-          <p className="font-medium">{user.name ?? "—"}</p>
-          <p className="text-sm text-slate-500">{user.email}</p>
-          <p className="text-xs text-slate-400">Member since {memberSince}</p>
+          <p style={{ fontWeight: 600 }}>{user.name ?? "—"}</p>
+          <p className="mint-muted" style={{ fontSize: 13 }}>{user.email}</p>
+          <p style={{ fontSize: 12, color: "var(--muted)" }}>
+            Member since {memberSince}
+          </p>
         </div>
       </section>
 
       {/* Connected providers */}
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold">Sign-in providers</h3>
-        <ul className="divide-y divide-slate-100">
+      <section className="mint-panel" style={{ marginBottom: 16 }}>
+        <div className="mint-ph">
+          <h3>Sign-in providers</h3>
+        </div>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {PROVIDERS.map(({ id, label }) => {
             const connected = connectedProviders.has(id);
             return (
-              <li
-                key={id}
-                className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-              >
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{label}</span>
+              <li key={id} className="mint-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{label}</span>
                   {connected && (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 9px",
+                        borderRadius: 999,
+                        background: "rgba(14,138,80,0.12)",
+                        color: "var(--pos)",
+                      }}
+                    >
                       Connected
                     </span>
                   )}
                 </div>
                 {!connected && (
-                  <form action={connectProvider}>
+                  <form action={connectProvider} style={{ marginLeft: "auto" }}>
                     <input type="hidden" name="provider" value={id} />
-                    <button
-                      type="submit"
-                      className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                    >
+                    <button type="submit" className="mint-btn">
                       Connect
                     </button>
                   </form>
@@ -128,6 +148,17 @@ export default async function SettingsPage({
           })}
         </ul>
       </section>
+
+      <form
+        action={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+      >
+        <button type="submit" className="mint-btn danger">
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

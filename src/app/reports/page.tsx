@@ -3,11 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
+import { CHART_PALETTE } from "@/lib/colors";
+import { Donut } from "@/components/Donut";
 import type { MonthlyReport } from "@/types";
-
-// SKELETON PAGE — the aggregation already happens server-side in
-// /api/reports. This page fetches and shows the totals; the per-category
-// budget-vs-actual visualization is left as a TODO.
 
 async function fetchReport(month: string): Promise<MonthlyReport> {
   const res = await fetch(`/api/reports?month=${month}`);
@@ -22,75 +20,135 @@ export default function ReportsPage() {
     queryFn: () => fetchReport(month),
   });
 
+  const spending =
+    data?.byCategory
+      .filter((r) => r.spent > 0)
+      .slice()
+      .sort((a, b) => b.spent - a.spent) ?? [];
+  const totalSpend = spending.reduce((s, c) => s + c.spent, 0);
+  const maxSpend = spending[0]?.spent ?? 0;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <>
+      <div className="mint-head">
         <div>
-          <h2 className="text-lg font-semibold">Monthly Report</h2>
-          <p className="text-sm text-slate-500">
-            Income, expenses, and category breakdown.
-          </p>
+          <h1>Monthly report</h1>
+          <p>Income, expenses, and category breakdown.</p>
         </div>
         <input
           type="month"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="mint-input"
         />
       </div>
 
       {isLoading || !data ? (
-        <p className="text-sm text-slate-500">Loading report…</p>
+        <p className="mint-muted">Loading report…</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Stat label="Total Income" value={data.totalIncome} />
-            <Stat label="Total Expenses" value={data.totalExpenses} />
-            <Stat label="Net Savings" value={data.netSavings} />
+          <div className="mint-stats">
+            <div className="mint-stat">
+              <div className="lbl">
+                <span className="mint-dot" style={{ background: "var(--pos)" }} />
+                Total income
+              </div>
+              <div className="val num">{formatCurrency(data.totalIncome)}</div>
+            </div>
+            <div className="mint-stat">
+              <div className="lbl">
+                <span className="mint-dot" style={{ background: "var(--neg)" }} />
+                Total expenses
+              </div>
+              <div className="val num">{formatCurrency(data.totalExpenses)}</div>
+            </div>
+            <div className="mint-stat feat">
+              <div className="lbl">Net savings</div>
+              <div className="val num">{formatCurrency(data.netSavings)}</div>
+            </div>
           </div>
 
-          {/* TODO: render budget vs. actual per category.
-              `data.byCategory` already includes { categoryName, spent, limit }.
-              Add a progress bar per row (spent / limit), highlight overspend in
-              red, and consider a chart for the category breakdown. */}
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
-                  <th className="px-4 py-2 font-medium">Category</th>
-                  <th className="px-4 py-2 text-right font-medium">Spent</th>
-                  <th className="px-4 py-2 text-right font-medium">Budget</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.byCategory.map((row) => (
-                  <tr
-                    key={row.categoryId}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <td className="px-4 py-2">{row.categoryName}</td>
-                    <td className="px-4 py-2 text-right">
-                      {formatCurrency(row.spent)}
-                    </td>
-                    <td className="px-4 py-2 text-right text-slate-500">
-                      {row.limit != null ? formatCurrency(row.limit) : "—"}
-                    </td>
+          <div className="mint-grid split">
+            <div className="mint-panel">
+              <div className="mint-ph">
+                <h3>Breakdown</h3>
+              </div>
+              {totalSpend === 0 ? (
+                <p className="mint-muted">No expenses recorded this month.</p>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <Donut
+                    segments={spending.map((c) => ({
+                      name: c.categoryName,
+                      amount: c.spent,
+                    }))}
+                    total={totalSpend}
+                    size={180}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mint-panel">
+              <div className="mint-ph">
+                <h3>By category</h3>
+              </div>
+              <table className="mint-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Share</th>
+                    <th className="r">Spent</th>
+                    <th className="r">Budget</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {spending.map((c, i) => (
+                    <tr key={c.categoryId}>
+                      <td>
+                        <div className="nm">
+                          <span
+                            className="mint-dot"
+                            style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }}
+                          />
+                          {c.categoryName}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="mint-cell-bar">
+                          <div className="track">
+                            <div
+                              className="fill"
+                              style={{
+                                width: `${maxSpend > 0 ? (c.spent / maxSpend) * 100 : 0}%`,
+                                background: CHART_PALETTE[i % CHART_PALETTE.length],
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="r am">{formatCurrency(c.spent)}</td>
+                      <td className="r">
+                        {c.limit != null ? (
+                          formatCurrency(c.limit)
+                        ) : (
+                          <span className="mint-nobudget">Not set</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {spending.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="mint-muted" style={{ paddingTop: 18 }}>
+                        Nothing to report for this month.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{formatCurrency(value)}</p>
-    </div>
+    </>
   );
 }

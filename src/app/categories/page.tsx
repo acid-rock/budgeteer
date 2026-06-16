@@ -51,21 +51,27 @@ export default function CategoriesPage() {
     createMutation.mutate({ name: name.trim(), kind });
   }
 
-  const inputClass =
-    "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
+  const inputClass = "mint-input";
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Categories</h2>
-        <p className="text-sm text-slate-500">
-          Manage the income and expense categories used across the app.
-        </p>
+    <>
+      <div className="mint-head">
+        <div>
+          <h1>Categories</h1>
+          <p>Organize where your money comes from and goes.</p>
+        </div>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-200 bg-white p-4"
+        className="mint-panel"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          gap: 12,
+          marginBottom: 16,
+        }}
       >
         <input
           type="text"
@@ -73,7 +79,8 @@ export default function CategoriesPage() {
           placeholder="New category name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={`${inputClass} flex-1`}
+          className={inputClass}
+          style={{ flex: 1, minWidth: 200 }}
         />
         <select
           value={kind}
@@ -86,31 +93,29 @@ export default function CategoriesPage() {
         <button
           type="submit"
           disabled={createMutation.isPending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="mint-btn pri"
         >
-          {createMutation.isPending ? "Adding…" : "Add"}
+          {createMutation.isPending ? "Adding…" : "+ New category"}
         </button>
         {createMutation.isError && (
-          <p className="w-full text-sm text-red-600">
+          <p className="mint-err" style={{ width: "100%" }}>
             {(createMutation.error as Error).message}
           </p>
         )}
       </form>
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Loading categories…</p>
+        <p className="mint-muted">Loading categories…</p>
       ) : !categories || categories.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          No categories yet — add one above.
-        </p>
+        <p className="mint-muted">No categories yet — add one above.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="mint-tablewrap">
+          <table className="mint-table">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="px-4 py-2 font-medium">Name</th>
-                <th className="px-4 py-2 font-medium">Kind</th>
-                <th className="px-4 py-2 text-right font-medium">Actions</th>
+              <tr>
+                <th>Name</th>
+                <th>Kind</th>
+                <th className="r">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -121,6 +126,6 @@ export default function CategoriesPage() {
           </table>
         </div>
       )}
-    </div>
+    </>
   );
 }

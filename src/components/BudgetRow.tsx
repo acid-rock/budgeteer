@@ -33,8 +33,7 @@ async function deleteBudget(id: string): Promise<void> {
   }
 }
 
-const inputClass =
-  "w-32 rounded-md border border-slate-300 px-2 py-1 text-sm text-right focus:border-slate-500 focus:outline-none";
+const inputClass = "mint-input w-32 text-right";
 
 export function BudgetRow({
   category,
@@ -74,9 +73,9 @@ export function BudgetRow({
   const dirty = limit.trim() !== stored;
 
   return (
-    <tr className="border-b border-slate-100 last:border-0">
-      <td className="px-4 py-2">{category.name}</td>
-      <td className="px-4 py-2 text-right">
+    <tr>
+      <td style={{ fontWeight: 600 }}>{category.name}</td>
+      <td className="r">
         <input
           type="number"
           step="0.01"
@@ -87,12 +86,12 @@ export function BudgetRow({
           className={inputClass}
         />
       </td>
-      <td className="px-4 py-2">
+      <td>
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => saveMutation.mutate()}
             disabled={!dirty || limit.trim() === "" || saveMutation.isPending}
-            className="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+            className="mint-btn pri"
           >
             {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
@@ -103,14 +102,14 @@ export function BudgetRow({
                   deleteMutation.mutate();
               }}
               disabled={deleteMutation.isPending}
-              className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
+              className="mint-btn danger"
             >
               {deleteMutation.isPending ? "Removing…" : "Remove"}
             </button>
           )}
         </div>
         {(saveMutation.isError || deleteMutation.isError) && (
-          <p className="mt-1 text-right text-xs text-red-600">
+          <p className="mint-err mt-1 text-right">
             {((saveMutation.error ?? deleteMutation.error) as Error).message}
           </p>
         )}

@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+import { colorForCategory } from "@/lib/colors";
 
 async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories");
@@ -34,9 +35,6 @@ async function deleteTransaction(id: string): Promise<void> {
     throw new Error(err.error ?? "Failed to delete transaction");
   }
 }
-
-const cellInput =
-  "w-full rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-500 focus:outline-none";
 
 export function TransactionRow({ transaction }: { transaction: Transaction }) {
   const queryClient = useQueryClient();
@@ -102,121 +100,119 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
     });
   }
 
+  const categoryName = transaction.category?.name ?? "—";
+  const color = colorForCategory(categoryName);
+
   if (editing) {
     return (
-      <tr className="border-b border-slate-100 bg-slate-50 last:border-0">
-        <td className="px-4 py-2">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={cellInput}
-          />
-        </td>
-        <td className="px-4 py-2">
-          <div className="flex flex-col gap-1">
-            <select
-              value={type}
-              onChange={(e) =>
-                handleTypeChange(e.target.value as TransactionType)
-              }
-              className={cellInput}
-            >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className={cellInput}
-            >
-              {visibleCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </td>
-        <td className="px-4 py-2">
-          <input
-            type="text"
-            value={note}
-            placeholder="Note"
-            onChange={(e) => setNote(e.target.value)}
-            className={cellInput}
-          />
-        </td>
-        <td className="px-4 py-2">
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className={`${cellInput} text-right`}
-          />
-        </td>
-        <td className="px-4 py-2">
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-            >
-              {updateMutation.isPending ? "Saving…" : "Save"}
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-          </div>
-          {updateMutation.isError && (
-            <p className="mt-1 text-right text-xs text-red-600">
-              {(updateMutation.error as Error).message}
-            </p>
-          )}
-        </td>
-      </tr>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 10,
+          padding: "14px 0",
+          borderBottom: "1px solid var(--line)",
+        }}
+      >
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="mint-input"
+        />
+        <select
+          value={type}
+          onChange={(e) => handleTypeChange(e.target.value as TransactionType)}
+          className="mint-input"
+        >
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="mint-input"
+        >
+          {visibleCategories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={note}
+          placeholder="Note"
+          onChange={(e) => setNote(e.target.value)}
+          className="mint-input"
+          style={{ flex: 1, minWidth: 140 }}
+        />
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="mint-input"
+          style={{ width: 120, textAlign: "right" }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={updateMutation.isPending}
+          className="mint-btn pri"
+        >
+          {updateMutation.isPending ? "Saving…" : "Save"}
+        </button>
+        <button onClick={() => setEditing(false)} className="mint-btn">
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            if (confirm("Delete this transaction?")) deleteMutation.mutate();
+          }}
+          disabled={deleteMutation.isPending}
+          className="mint-btn danger"
+        >
+          {deleteMutation.isPending ? "Deleting…" : "Delete"}
+        </button>
+        {(updateMutation.isError || deleteMutation.isError) && (
+          <p className="mint-err" style={{ width: "100%" }}>
+            {((updateMutation.error ?? deleteMutation.error) as Error).message}
+          </p>
+        )}
+      </div>
     );
   }
 
   return (
-    <tr className="border-b border-slate-100 last:border-0">
-      <td className="px-4 py-2 text-slate-600">
-        {formatDate(transaction.date)}
-      </td>
-      <td className="px-4 py-2">{transaction.category?.name ?? "—"}</td>
-      <td className="px-4 py-2 text-slate-500">{transaction.note ?? ""}</td>
-      <td
-        className={`px-4 py-2 text-right font-medium ${
-          transaction.type === "income" ? "text-green-600" : "text-slate-900"
-        }`}
-      >
+    <div
+      className="mint-row"
+      style={{ cursor: "pointer" }}
+      onClick={startEditing}
+      title="Edit transaction"
+    >
+      <div className="mint-ic">
+        <div className="g" style={{ background: color }} />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div
+          className="nm"
+          style={{ overflow: "hidden", textOverflow: "ellipsis" }}
+        >
+          {transaction.note?.trim() || categoryName}
+        </div>
+        <div className="mt">
+          <span className="mint-tag">
+            <span className="d" style={{ background: color }} />
+            {categoryName}
+          </span>
+        </div>
+      </div>
+      <div className={"am" + (transaction.type === "income" ? " pos" : "")}>
         {transaction.type === "income" ? "+" : "−"}
         {formatCurrency(transaction.amount)}
-      </td>
-      <td className="px-4 py-2">
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={startEditing}
-            className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => {
-              if (confirm("Delete this transaction?")) deleteMutation.mutate();
-            }}
-            disabled={deleteMutation.isPending}
-            className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-          >
-            {deleteMutation.isPending ? "Deleting…" : "Delete"}
-          </button>
-        </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }

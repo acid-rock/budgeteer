@@ -1,34 +1,63 @@
 import type { Metadata } from "next";
+import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Nav } from "@/components/Nav";
-import { UserMenu } from "@/components/UserMenu";
+import { TopBar } from "@/components/TopBar";
+import { auth } from "@/auth";
+import { APP_TIME_ZONE } from "@/lib/utils";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm",
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-grotesk",
+});
 
 export const metadata: Metadata = {
   title: "Budgeteer",
   description: "A simple personal finance tracker",
 };
 
-export default function RootLayout({
+function initialsFor(name?: string | null, email?: string | null): string {
+  const source = name?.trim() || email?.split("@")[0] || "U";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const letters =
+    parts.length >= 2 ? parts[0][0] + parts[1][0] : source.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  const monthLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
   return (
-    <html lang="en">
-      <body className="min-h-screen">
+    <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
+      <body>
         <Providers>
-          <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
-            <header className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">
-                  💰 Budgeteer
-                </h1>
-                <UserMenu />
-              </div>
-              <Nav />
-            </header>
-            <main>{children}</main>
+          <div className="mint">
+            {session?.user ? (
+              <>
+                <TopBar
+                  month={monthLabel}
+                  initials={initialsFor(session.user.name, session.user.email)}
+                />
+                <main className="mint-page">{children}</main>
+              </>
+            ) : (
+              <main>{children}</main>
+            )}
           </div>
         </Providers>
       </body>

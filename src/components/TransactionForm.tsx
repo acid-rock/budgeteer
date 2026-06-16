@@ -80,13 +80,13 @@ export function TransactionForm() {
     });
   }
 
-  const inputClass =
-    "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
+  const inputClass = "mint-input";
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-6"
+      className="mint-panel mint-formgrid"
+      style={{ marginBottom: 16 }}
     >
       <select
         value={type}
@@ -132,19 +132,15 @@ export function TransactionForm() {
         placeholder="Note (optional)"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        className={`${inputClass} sm:col-span-1`}
+        className={inputClass}
       />
 
-      <button
-        type="submit"
-        disabled={mutation.isPending}
-        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-      >
-        {mutation.isPending ? "Adding…" : "Add"}
+      <button type="submit" disabled={mutation.isPending} className="mint-btn pri">
+        {mutation.isPending ? "Adding…" : "+ Add"}
       </button>
 
       {mutation.isError && (
-        <p className="col-span-full text-sm text-red-600">
+        <p className="mint-err" style={{ gridColumn: "1 / -1" }}>
           {(mutation.error as Error).message}
         </p>
       )}
