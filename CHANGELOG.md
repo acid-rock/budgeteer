@@ -23,8 +23,14 @@ All notable changes to Budgeteer. Format loosely follows
   - **Activity heatmap** rebuilt to GitHub-style graduated green levels driven by
     transaction *count* per day (was binary on/off), via `countByDate`.
   - **Reports** redesigned with stat cards, a donut breakdown, and a share-bar
-    table. **Transactions / Budgets / Categories / Settings / Login** all
-    re-themed to the new system while keeping existing behavior.
+    table. **Budgets / Categories / Settings / Login** all re-themed to the new
+    system while keeping existing behavior.
+  - **Transactions** moved from a 5-column table to a mobile-friendly list
+    grouped by day — each group shows an uppercase date header with the day's
+    signed net total, and each row shows a colored category tile, the note as the
+    title, a category pill, and the signed amount. Edit/delete became
+    **tap-to-edit**: clicking a row expands an inline editor (date, type, category,
+    note, amount) with Save / Cancel / Delete that reflows on narrow screens.
   - `src/lib/colors.ts` (new) — shared green chart palette + stable per-category
     color.
 - **Responsive layout.** Breakpoints at 960 / 820 / 760 / 560px collapse the
