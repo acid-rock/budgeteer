@@ -28,8 +28,7 @@ async function deleteCategory(id: string): Promise<void> {
   }
 }
 
-const inputClass =
-  "rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-slate-500 focus:outline-none";
+const inputClass = "mint-input";
 
 export function CategoryRow({ category }: { category: Category }) {
   const queryClient = useQueryClient();
@@ -62,8 +61,8 @@ export function CategoryRow({ category }: { category: Category }) {
 
   if (editing) {
     return (
-      <tr className="border-b border-slate-100 bg-slate-50 last:border-0">
-        <td className="px-4 py-2">
+      <tr>
+        <td>
           <input
             type="text"
             value={name}
@@ -71,7 +70,7 @@ export function CategoryRow({ category }: { category: Category }) {
             className={`${inputClass} w-full`}
           />
         </td>
-        <td className="px-4 py-2">
+        <td>
           <select
             value={kind}
             onChange={(e) => setKind(e.target.value as CategoryKind)}
@@ -81,24 +80,21 @@ export function CategoryRow({ category }: { category: Category }) {
             <option value="income">Income</option>
           </select>
         </td>
-        <td className="px-4 py-2">
+        <td>
           <div className="flex justify-end gap-2">
             <button
               onClick={() => updateMutation.mutate()}
               disabled={!name.trim() || updateMutation.isPending}
-              className="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+              className="mint-btn pri"
             >
               {updateMutation.isPending ? "Saving…" : "Save"}
             </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-            >
+            <button onClick={() => setEditing(false)} className="mint-btn">
               Cancel
             </button>
           </div>
           {updateMutation.isError && (
-            <p className="mt-1 text-right text-xs text-red-600">
+            <p className="mint-err mt-1 text-right">
               {(updateMutation.error as Error).message}
             </p>
           )}
@@ -107,26 +103,28 @@ export function CategoryRow({ category }: { category: Category }) {
     );
   }
 
+  const income = category.kind === "income";
   return (
-    <tr className="border-b border-slate-100 last:border-0">
-      <td className="px-4 py-2 font-medium">{category.name}</td>
-      <td className="px-4 py-2">
+    <tr>
+      <td style={{ fontWeight: 600 }}>{category.name}</td>
+      <td>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            category.kind === "income"
-              ? "bg-green-100 text-green-700"
-              : "bg-slate-100 text-slate-600"
-          }`}
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "2px 9px",
+            borderRadius: 999,
+            textTransform: "capitalize",
+            background: income ? "rgba(14,138,80,0.12)" : "rgba(216,85,60,0.12)",
+            color: income ? "var(--pos)" : "var(--neg)",
+          }}
         >
           {category.kind}
         </span>
       </td>
-      <td className="px-4 py-2">
+      <td>
         <div className="flex justify-end gap-2">
-          <button
-            onClick={startEditing}
-            className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-          >
+          <button onClick={startEditing} className="mint-btn">
             Edit
           </button>
           <button
@@ -135,13 +133,13 @@ export function CategoryRow({ category }: { category: Category }) {
                 deleteMutation.mutate();
             }}
             disabled={deleteMutation.isPending}
-            className="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
+            className="mint-btn danger"
           >
             {deleteMutation.isPending ? "Deleting…" : "Delete"}
           </button>
         </div>
         {deleteMutation.isError && (
-          <p className="mt-1 text-right text-xs text-red-600">
+          <p className="mint-err mt-1 text-right">
             {(deleteMutation.error as Error).message}
           </p>
         )}

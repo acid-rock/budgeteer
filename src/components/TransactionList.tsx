@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { Transaction } from "@/types";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { TransactionRow } from "./TransactionRow";
 
 async function fetchTransactions(): Promise<Transaction[]> {
@@ -17,39 +18,49 @@ export function TransactionList() {
   });
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Loading transactions…</p>;
+    return <p className="mint-muted">Loading transactions…</p>;
   }
   if (isError) {
-    return (
-      <p className="text-sm text-red-600">{(error as Error).message}</p>
-    );
+    return <p className="mint-err">{(error as Error).message}</p>;
   }
   if (!data || data.length === 0) {
-    return (
-      <p className="text-sm text-slate-500">
-        No transactions yet — add one above.
-      </p>
-    );
+    return <p className="mint-muted">No transactions yet — add one above.</p>;
+  }
+
+  // Group consecutive transactions by their displayed day (already date-sorted
+  // newest-first from the API). Grouping on the formatted label keeps the header
+  // in lockstep with each row's shown date regardless of timezone.
+  const groups: { label: string; items: Transaction[] }[] = [];
+  for (const t of data) {
+    const label = formatDate(t.date);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(t);
+    else groups.push({ label, items: [t] });
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 text-left text-slate-500">
-            <th className="px-4 py-2 font-medium">Date</th>
-            <th className="px-4 py-2 font-medium">Category</th>
-            <th className="px-4 py-2 font-medium">Note</th>
-            <th className="px-4 py-2 text-right font-medium">Amount</th>
-            <th className="px-4 py-2 text-right font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((t) => (
-            <TransactionRow key={t.id} transaction={t} />
-          ))}
-        </tbody>
-      </table>
+    <div className="mint-panel">
+      {groups.map((g) => {
+        const net = g.items.reduce(
+          (s, t) =>
+            s + (t.type === "income" ? Number(t.amount) : -Number(t.amount)),
+          0
+        );
+        return (
+          <div key={g.label} className="mint-daygroup">
+            <div className="mint-daylabel">
+              <span>{g.label}</span>
+              <span className="sum">
+                {net >= 0 ? "+" : "−"}
+                {formatCurrency(Math.abs(net))}
+              </span>
+            </div>
+            {g.items.map((t) => (
+              <TransactionRow key={t.id} transaction={t} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -7,14 +7,17 @@ import {
   formatDate,
   dateToMonthString,
   monthRange,
+  todayDateString,
+  APP_TIME_ZONE,
 } from "@/lib/utils";
+import { CHART_PALETTE, colorForCategory } from "@/lib/colors";
+import { ActivityGrid } from "@/components/ActivityGrid";
+import { Donut } from "@/components/Donut";
 
-// Render per-request: the dashboard reads live "this month" totals from the DB,
-// so it must not be statically prerendered/cached at build time.
 export const dynamic = "force-dynamic";
 
-// Dashboard: a quick read-only snapshot of the current month, rendered on the
-// server straight from the DB. Expand with charts/widgets later.
+const DAY_MS = 86_400_000;
+
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -23,172 +26,309 @@ export default async function DashboardPage() {
   const month = dateToMonthString();
   const { start, end } = monthRange(month);
 
-  // Sum in the database (exact Decimal), then convert to numbers for display.
-  const totalsByType = await prisma.transaction.groupBy({
-    by: ["type"],
-    where: { userId, date: { gte: start, lt: end } },
-    _sum: { amount: true },
-  });
-  const sumForType = (type: string) =>
-    Number(totalsByType.find((g) => g.type === type)?._sum.amount ?? 0);
-  const totalIncome = sumForType("income");
-  const totalExpenses = sumForType("expense");
-  const netSavings = totalIncome - totalExpenses;
+  // Anchor "today" to the app timezone for the rolling-window queries.
+  const todayStr = todayDateString();
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const todayUTC = new Date(Date.UTC(ty, tm - 1, td));
+  const activityStart = new Date(todayUTC.getTime() - 371 * DAY_MS);
+  const dailyStart = new Date(todayUTC.getTime() - 13 * DAY_MS);
 
-  const cards = [
-    { label: "Income", value: totalIncome, tone: "text-green-600" },
-    { label: "Expenses", value: totalExpenses, tone: "text-slate-900" },
-    {
-      label: "Net Savings",
-      value: netSavings,
-      tone: netSavings >= 0 ? "text-green-600" : "text-red-600",
-    },
-  ];
-
-  // Two essential at-a-glance lists: latest activity and where money is going.
-  const [recentTransactions, expenseByCategory] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { date: "desc" },
-      take: 5,
-      include: { category: true },
+  const [
+    totalsByType,
+    expenseByCategory,
+    recentTransactions,
+    activityRows,
+    dailyRows,
+  ] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ["type"],
+      where: { userId, date: { gte: start, lt: end } },
+      _sum: { amount: true },
     }),
     prisma.transaction.groupBy({
       by: ["categoryId"],
       where: { userId, type: "expense", date: { gte: start, lt: end } },
       _sum: { amount: true },
       orderBy: { _sum: { amount: "desc" } },
+    }),
+    prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { date: "desc" },
       take: 5,
+      include: { category: true },
+    }),
+    prisma.transaction.findMany({
+      where: { userId, date: { gte: activityStart } },
+      select: { date: true },
+    }),
+    prisma.transaction.findMany({
+      where: { userId, type: "expense", date: { gte: dailyStart } },
+      select: { date: true, amount: true },
     }),
   ]);
 
-  // Resolve category names for the top-spending rows.
-  const topCategories = await prisma.category.findMany({
-    where: { userId, id: { in: expenseByCategory.map((g) => g.categoryId) } },
+  const sumForType = (type: string) =>
+    Number(totalsByType.find((g) => g.type === type)?._sum.amount ?? 0);
+  const totalIncome = sumForType("income");
+  const totalExpenses = sumForType("expense");
+  const netSavings = totalIncome - totalExpenses;
+
+  // Resolve category names for the expense breakdown.
+  const catIds = expenseByCategory.map((g) => g.categoryId);
+  const cats = await prisma.category.findMany({
+    where: { userId, id: { in: catIds } },
     select: { id: true, name: true },
   });
-  const nameById = new Map(topCategories.map((c) => [c.id, c.name]));
-  const topSpending = expenseByCategory.map((g) => ({
+  const nameById = new Map(cats.map((c) => [c.id, c.name]));
+  const spending = expenseByCategory.map((g) => ({
     name: nameById.get(g.categoryId) ?? "—",
     amount: Number(g._sum.amount ?? 0),
   }));
+  const totalSpend = spending.reduce((s, c) => s + c.amount, 0);
+  const legend = spending.slice(0, 6);
+  const topSpending = spending.slice(0, 5);
+  const maxSpend = topSpending[0]?.amount ?? 0;
+
+  // Activity heatmap counts (transactions per day).
+  const countByDate: Record<string, number> = {};
+  for (const r of activityRows) {
+    const k = r.date.toISOString().slice(0, 10);
+    countByDate[k] = (countByDate[k] ?? 0) + 1;
+  }
+
+  // 14-day daily spending series.
+  const dailyMap: Record<string, number> = {};
+  for (const r of dailyRows) {
+    const k = r.date.toISOString().slice(0, 10);
+    dailyMap[k] = (dailyMap[k] ?? 0) + Number(r.amount);
+  }
+  const daily: number[] = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(dailyStart.getTime() + i * DAY_MS)
+      .toISOString()
+      .slice(0, 10);
+    daily.push(dailyMap[d] ?? 0);
+  }
+  const fmtShort = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: APP_TIME_ZONE,
+      month: "short",
+      day: "numeric",
+    }).format(d);
+
+  const firstName = (session.user.name ?? "there").split(/\s+/)[0];
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: APP_TIME_ZONE,
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date())
+  );
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const monthName = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "long",
+  }).format(new Date());
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Dashboard</h2>
-        <p className="text-sm text-slate-500">This month ({month})</p>
+    <>
+      <div className="mint-head">
+        <div>
+          <h1>
+            {greeting}, {firstName}
+          </h1>
+          <p>Here&rsquo;s how {monthName} is shaping up.</p>
+        </div>
+        <div className="mint-cta">
+          <Link className="mint-btn" href="/reports">
+            View report
+          </Link>
+          <Link className="mint-btn pri" href="/transactions">
+            + Add transaction
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-lg border border-slate-200 bg-white p-4"
-          >
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <p className={`mt-1 text-2xl font-bold ${card.tone}`}>
-              {formatCurrency(card.value)}
-            </p>
+      <div className="mint-stats">
+        <div className="mint-stat">
+          <div className="lbl">
+            <span className="mint-dot" style={{ background: "var(--pos)" }} />
+            Income
           </div>
-        ))}
+          <div className="val num">{formatCurrency(totalIncome)}</div>
+        </div>
+        <div className="mint-stat">
+          <div className="lbl">
+            <span className="mint-dot" style={{ background: "var(--neg)" }} />
+            Expenses
+          </div>
+          <div className="val num">{formatCurrency(totalExpenses)}</div>
+          {totalIncome > 0 && (
+            <div className="sub">
+              {Math.round((totalExpenses / totalIncome) * 100)}% of income spent
+            </div>
+          )}
+        </div>
+        <div className="mint-stat feat">
+          <div className="lbl">Net savings</div>
+          <div className="val num">{formatCurrency(netSavings)}</div>
+          <div className="sub">
+            {netSavings >= 0
+              ? "You stayed in the green this month."
+              : "You spent more than you earned."}
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-3 text-sm">
-        <Link
-          href="/transactions"
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700"
-        >
-          Add a transaction
-        </Link>
-        <Link
-          href="/reports"
-          className="rounded-md border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-100"
-        >
-          View report
-        </Link>
+      <div className="mint-grid">
+        <div className="mint-panel">
+          <div className="mint-ph">
+            <h3>Spending by category</h3>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              {monthName}
+            </span>
+          </div>
+          {totalSpend === 0 ? (
+            <p className="mint-muted">No expenses this month yet.</p>
+          ) : (
+            <div className="mint-donut-wrap">
+              <Donut segments={legend} total={totalSpend} />
+              <div className="mint-legend">
+                {legend.map((c, i) => (
+                  <div key={c.name} className="mint-leg">
+                    <span
+                      className="mint-dot"
+                      style={{ background: CHART_PALETTE[i] }}
+                    />
+                    <span className="nm">{c.name}</span>
+                    <span className="am num">{formatCurrency(c.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="mint-panel">
+          <div className="mint-ph">
+            <h3>Daily spending</h3>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              Last 14 days
+            </span>
+          </div>
+          <CashflowBars values={daily} />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 11,
+              color: "var(--muted)",
+              marginTop: 8,
+            }}
+          >
+            <span>{fmtShort(dailyStart)}</span>
+            <span>{fmtShort(todayUTC)}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Recent activity */}
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold">Recent activity</h3>
-            <Link
-              href="/transactions"
-              className="text-sm text-slate-500 hover:text-slate-900"
-            >
+      <div className="mint-panel" style={{ marginBottom: 16 }}>
+        <div className="mint-ph">
+          <h3>Activity</h3>
+          <Link className="vall" href="/reports">
+            Last year
+          </Link>
+        </div>
+        <ActivityGrid countByDate={countByDate} />
+      </div>
+
+      <div className="mint-grid">
+        <div className="mint-panel">
+          <div className="mint-ph">
+            <h3>Recent activity</h3>
+            <Link className="vall" href="/transactions">
               View all
             </Link>
           </div>
           {recentTransactions.length === 0 ? (
-            <p className="text-sm text-slate-500">No transactions yet.</p>
+            <p className="mint-muted">No transactions yet.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <div className="mint-act">
               {recentTransactions.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {t.category?.name ?? "—"}
-                    </span>
-                    <span className="text-xs text-slate-500">
+                <div key={t.id} className="mint-row">
+                  <div className="mint-ic">
+                    <div
+                      className="g"
+                      style={{
+                        background: colorForCategory(t.category?.name ?? "—"),
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <div className="nm">{t.category?.name ?? "—"}</div>
+                    <div className="mt">
                       {formatDate(t.date)}
                       {t.note ? ` · ${t.note}` : ""}
-                    </span>
+                    </div>
                   </div>
-                  <span
-                    className={`font-medium ${
-                      t.type === "income" ? "text-green-600" : "text-slate-900"
-                    }`}
-                  >
+                  <div className={"am" + (t.type === "income" ? " pos" : "")}>
                     {t.type === "income" ? "+" : "−"}
                     {formatCurrency(Number(t.amount))}
-                  </span>
-                </li>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
-        </section>
-
-        {/* Top spending this month */}
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold">Top spending</h3>
-            <span className="text-sm text-slate-500">{month}</span>
+        </div>
+        <div className="mint-panel">
+          <div className="mint-ph">
+            <h3>Top spending</h3>
+            <Link className="vall" href="/budgets">
+              Budgets
+            </Link>
           </div>
           {topSpending.length === 0 ? (
-            <p className="text-sm text-slate-500">No expenses this month.</p>
+            <p className="mint-muted">No expenses this month.</p>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {topSpending.map((row) => {
-                const pct =
-                  totalExpenses > 0
-                    ? Math.round((row.amount / totalExpenses) * 100)
-                    : 0;
-                return (
-                  <li key={row.name} className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{row.name}</span>
-                      <span className="font-medium">
-                        {formatCurrency(row.amount)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-slate-100">
-                      <div
-                        className="h-1.5 rounded-full bg-slate-900"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="mint-tlist">
+              {topSpending.map((c, i) => (
+                <div key={c.name} className="mint-trow">
+                  <div className="top">
+                    <span className="nm">{c.name}</span>
+                    <span className="am num">{formatCurrency(c.amount)}</span>
+                  </div>
+                  <div className="mint-track">
+                    <div
+                      className="fill"
+                      style={{
+                        width: `${maxSpend > 0 ? (c.amount / maxSpend) * 100 : 0}%`,
+                        background: CHART_PALETTE[i],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </section>
+        </div>
       </div>
+    </>
+  );
+}
+
+// 14-day expense bars; days over ₱300 get the darker gradient.
+function CashflowBars({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  return (
+    <div className="mint-bars">
+      {values.map((v, i) => (
+        <div key={i} className={"mint-bar" + (v > 300 ? " hi" : "")}>
+          <div
+            className="b"
+            style={{ height: `${Math.max(6, (v / max) * 120)}px` }}
+          />
+        </div>
+      ))}
     </div>
   );
 }
