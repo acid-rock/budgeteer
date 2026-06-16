@@ -768,6 +768,22 @@ body {
   color: var(--pos);
   font-weight: 700;
 }
+/* small inline "Edit"/"Set" affordance on a budget row */
+.mint-edit {
+  font-family: var(--font-dm), "DM Sans", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--green2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+.mint-edit:hover {
+  background: var(--bg);
+}
 
 /* category cards */
 .mint-catgrid {
@@ -932,9 +948,11 @@ body {
 
 @media (max-width: 820px) {
   .mint-stats,
-  .mint-grid,
-  .mint-catgrid {
+  .mint-grid {
     grid-template-columns: 1fr;
+  }
+  .mint-catgrid {
+    grid-template-columns: 1fr 1fr;
   }
   .mint-formgrid {
     grid-template-columns: repeat(2, 1fr);
@@ -964,9 +982,6 @@ body {
   }
   .mint-page {
     padding: 22px 18px 32px;
-  }
-  .mint-catgrid {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -1002,6 +1017,10 @@ body {
   }
   .mint-stat .val {
     font-size: 26px;
+  }
+  /* Budget row header wraps so the name + amounts + edit never overflow. */
+  .mint-brow .top {
+    flex-wrap: wrap;
   }
   /* The month pill is non-functional today (see TopBar TODO); hide on phones. */
   .mint-month {

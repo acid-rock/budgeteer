@@ -23,8 +23,26 @@ All notable changes to Budgeteer. Format loosely follows
   - **Activity heatmap** rebuilt to GitHub-style graduated green levels driven by
     transaction *count* per day (was binary on/off), via `countByDate`.
   - **Reports** redesigned with stat cards, a donut breakdown, and a share-bar
-    table. **Transactions / Budgets / Categories / Settings / Login** all
-    re-themed to the new system while keeping existing behavior.
+    table. **Settings / Login** re-themed to the new system while keeping
+    existing behavior.
+  - **Transactions** moved from a 5-column table to a mobile-friendly list
+    grouped by day — each group shows an uppercase date header with the day's
+    signed net total, and each row shows a colored category tile, the note as the
+    title, a category pill, and the signed amount. Edit/delete became
+    **tap-to-edit**: clicking a row expands an inline editor (date, type, category,
+    note, amount) with Save / Cancel / Delete that reflows on narrow screens.
+  - **Budgets** moved from an editable table to a progress-bar list: three stat
+    cards (total budget / spent so far / remaining) plus one bar per expense
+    category showing `spent / limit`, a fill that turns red when over budget, and
+    a "% used" + "left"/"over by" footer. Spent figures come from the existing
+    `/api/reports?month=` aggregation. Editing is inline per row — an **Edit/Set**
+    affordance reveals a limit input with Save / Cancel / Remove that reflows on
+    mobile.
+  - **Categories** moved from a table to a responsive **card grid** (3 / 2 / 1
+    columns) — each card shows a colored swatch, name, Income/Expense pill, and a
+    footer with the transaction count + total. Editing is tap-to-edit (name, kind,
+    Save / Cancel / Delete). New `GET /api/categories/stats` endpoint returns
+    per-category count + summed amount.
   - `src/lib/colors.ts` (new) — shared green chart palette + stable per-category
     color.
 - **Responsive layout.** Breakpoints at 960 / 820 / 760 / 560px collapse the
