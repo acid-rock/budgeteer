@@ -2,12 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { CategoryRow } from "@/components/CategoryRow";
+import { CategoryCard } from "@/components/CategoryRow";
 import type { Category, CategoryKind } from "@/types";
+import type { CategoryStat } from "@/app/api/categories/stats/route";
 
 async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories");
   if (!res.ok) throw new Error("Failed to load categories");
+  return res.json();
+}
+
+async function fetchStats(): Promise<CategoryStat[]> {
+  const res = await fetch("/api/categories/stats");
+  if (!res.ok) throw new Error("Failed to load category stats");
   return res.json();
 }
 
@@ -33,6 +40,12 @@ export default function CategoriesPage() {
     queryKey: ["categories"],
     queryFn: fetchCategories,
   });
+  const { data: stats } = useQuery({
+    queryKey: ["category-stats"],
+    queryFn: fetchStats,
+  });
+
+  const statByCategory = new Map(stats?.map((s) => [s.categoryId, s]) ?? []);
 
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CategoryKind>("expense");
@@ -50,8 +63,6 @@ export default function CategoriesPage() {
     if (!name.trim()) return;
     createMutation.mutate({ name: name.trim(), kind });
   }
-
-  const inputClass = "mint-input";
 
   return (
     <>
@@ -79,13 +90,13 @@ export default function CategoriesPage() {
           placeholder="New category name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
+          className="mint-input"
           style={{ flex: 1, minWidth: 200 }}
         />
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as CategoryKind)}
-          className={inputClass}
+          className="mint-input"
         >
           <option value="expense">Expense</option>
           <option value="income">Income</option>
@@ -109,21 +120,14 @@ export default function CategoriesPage() {
       ) : !categories || categories.length === 0 ? (
         <p className="mint-muted">No categories yet — add one above.</p>
       ) : (
-        <div className="mint-tablewrap">
-          <table className="mint-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Kind</th>
-                <th className="r">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((c) => (
-                <CategoryRow key={c.id} category={c} />
-              ))}
-            </tbody>
-          </table>
+        <div className="mint-catgrid">
+          {categories.map((c) => (
+            <CategoryCard
+              key={c.id}
+              category={c}
+              stat={statByCategory.get(c.id)}
+            />
+          ))}
         </div>
       )}
     </>
