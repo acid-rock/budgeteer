@@ -995,6 +995,10 @@ body {
     white-space: normal;
     font-size: 23px;
   }
+  /* Month picker stretches to fill the stacked head on phones. */
+  .mint-head .mint-input {
+    width: 100%;
+  }
   .mint-cta {
     width: 100%;
   }
@@ -1041,5 +1045,15 @@ body {
   }
   .heat-months {
     grid-template-columns: repeat(53, var(--hc));
+  }
+  /* Reports: drop the Share bar column — 4 columns is too tight on phones. */
+  .mint-table th:nth-child(2),
+  .mint-table td:nth-child(2) {
+    display: none;
+  }
+  /* Give the remaining Category and amount columns a breathing gap. */
+  .mint-table th:not(.r),
+  .mint-table td:not(.r) {
+    padding-right: 12px;
   }
 }

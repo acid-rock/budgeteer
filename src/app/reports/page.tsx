@@ -92,6 +92,7 @@ export default function ReportsPage() {
               <div className="mint-ph">
                 <h3>By category</h3>
               </div>
+              <div style={{ overflowX: "auto" }}>
               <table className="mint-table">
                 <thead>
                   <tr>
@@ -145,6 +146,7 @@ export default function ReportsPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </>
