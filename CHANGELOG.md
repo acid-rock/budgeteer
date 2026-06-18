@@ -3,6 +3,16 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-18
+
+### Changed
+- **Reports page responsive improvements.** The 4-column category table was too
+  crowded on phones — the Share bar column is now hidden at ≤560px, and the
+  remaining columns get horizontal padding so Category and amount figures don't
+  run together. The month picker stretches to full width when the page header
+  stacks on narrow screens. A scroll wrapper on the table prevents layout breakage
+  on older WebKit when a category name is long.
+
 ## [Unreleased] — 2026-06-16
 
 ### Changed
