@@ -13,6 +13,7 @@ import {
 import { CHART_PALETTE, colorForCategory } from "@/lib/colors";
 import { ActivityGrid } from "@/components/ActivityGrid";
 import { Donut } from "@/components/Donut";
+import { DailyBarChart } from "@/components/DailyBarChart";
 import {
   getMonthTotals,
   getCategorySpending,
@@ -86,7 +87,7 @@ export default async function DashboardPage() {
               {monthName}
             </span>
           </div>
-          <Suspense fallback={<p className="mint-muted">Loading…</p>}>
+          <Suspense fallback={<DonutFallback />}>
             <SpendingDonutSection userId={userId} start={start} end={end} />
           </Suspense>
         </div>
@@ -97,7 +98,7 @@ export default async function DashboardPage() {
               Last 14 days
             </span>
           </div>
-          <Suspense fallback={<p className="mint-muted">Loading…</p>}>
+          <Suspense fallback={<DailyFallback />}>
             <DailySpendingSection
               userId={userId}
               dailyStart={dailyStart}
@@ -114,7 +115,7 @@ export default async function DashboardPage() {
             Last year
           </Link>
         </div>
-        <Suspense fallback={<p className="mint-muted">Loading…</p>}>
+        <Suspense fallback={<div className="mint-skel" style={{ height: 130 }} />}>
           <ActivitySection userId={userId} activityStart={activityStart} />
         </Suspense>
       </div>
@@ -127,7 +128,7 @@ export default async function DashboardPage() {
               View all
             </Link>
           </div>
-          <Suspense fallback={<p className="mint-muted">Loading…</p>}>
+          <Suspense fallback={<ListFallback />}>
             <RecentActivitySection userId={userId} />
           </Suspense>
         </div>
@@ -138,7 +139,7 @@ export default async function DashboardPage() {
               Budgets
             </Link>
           </div>
-          <Suspense fallback={<p className="mint-muted">Loading…</p>}>
+          <Suspense fallback={<ListFallback />}>
             <TopSpendingSection userId={userId} start={start} end={end} />
           </Suspense>
         </div>
@@ -155,19 +156,58 @@ function StatsFallback() {
           <span className="mint-dot" style={{ background: "var(--pos)" }} />
           Income
         </div>
-        <div className="val num mint-muted">—</div>
+        <div className="mint-skel" style={{ height: 30, width: "60%" }} />
       </div>
       <div className="mint-stat">
         <div className="lbl">
           <span className="mint-dot" style={{ background: "var(--neg)" }} />
           Expenses
         </div>
-        <div className="val num mint-muted">—</div>
+        <div className="mint-skel" style={{ height: 30, width: "60%" }} />
       </div>
       <div className="mint-stat feat">
         <div className="lbl">Net savings</div>
-        <div className="val num">—</div>
+        <div
+          className="mint-skel"
+          style={{ height: 30, width: "60%", background: "rgba(255,255,255,0.25)" }}
+        />
       </div>
+    </div>
+  );
+}
+
+function DonutFallback() {
+  return (
+    <div className="mint-donut-wrap">
+      <div className="mint-skel" style={{ width: 180, height: 180, borderRadius: "50%" }} />
+      <div className="mint-legend">
+        {[85, 70, 90, 60].map((w, i) => (
+          <div key={i} className="mint-skel" style={{ height: 14, width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DailyFallback() {
+  const heights = [40, 70, 30, 90, 55, 65, 35, 80, 45, 95, 60, 50, 75, 40];
+  return (
+    <div className="mint-bars">
+      {heights.map((h, i) => (
+        <div key={i} className="mint-bar">
+          <div className="mint-skel" style={{ height: h }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ListFallback() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="mint-skel" style={{ height: 38 }} />
+      ))}
     </div>
   );
 }
@@ -187,7 +227,7 @@ async function StatsSection({
     end
   );
   return (
-    <div className="mint-stats">
+    <div className="mint-stats mint-fadein">
       <div className="mint-stat">
         <div className="lbl">
           <span className="mint-dot" style={{ background: "var(--pos)" }} />
@@ -234,10 +274,10 @@ async function SpendingDonutSection({
   const legend = spending.slice(0, 6);
 
   if (totalSpend === 0) {
-    return <p className="mint-muted">No expenses this month yet.</p>;
+    return <p className="mint-muted mint-fadein">No expenses this month yet.</p>;
   }
   return (
-    <div className="mint-donut-wrap">
+    <div className="mint-donut-wrap mint-fadein">
       <Donut segments={legend} total={totalSpend} />
       <div className="mint-legend">
         {legend.map((c, i) => (
@@ -266,10 +306,10 @@ async function TopSpendingSection({
   const maxSpend = topSpending[0]?.amount ?? 0;
 
   if (topSpending.length === 0) {
-    return <p className="mint-muted">No expenses this month.</p>;
+    return <p className="mint-muted mint-fadein">No expenses this month.</p>;
   }
   return (
-    <div className="mint-tlist">
+    <div className="mint-tlist mint-fadein">
       {topSpending.map((c, i) => (
         <div key={c.name} className="mint-trow">
           <div className="top">
@@ -301,23 +341,22 @@ async function DailySpendingSection({
   todayUTC: Date;
 }) {
   const dailyMap = await getDailySpending(userId, dailyStart);
-  const daily: number[] = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(dailyStart.getTime() + i * DAY_MS)
-      .toISOString()
-      .slice(0, 10);
-    daily.push(dailyMap[d] ?? 0);
-  }
   const fmtShort = (d: Date) =>
     new Intl.DateTimeFormat("en-US", {
       timeZone: APP_TIME_ZONE,
       month: "short",
       day: "numeric",
     }).format(d);
+  const daily: { label: string; amount: number }[] = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(dailyStart.getTime() + i * DAY_MS);
+    const iso = d.toISOString().slice(0, 10);
+    daily.push({ label: fmtShort(d), amount: dailyMap[iso] ?? 0 });
+  }
 
   return (
-    <>
-      <CashflowBars values={daily} />
+    <div className="mint-fadein">
+      <DailyBarChart data={daily} />
       <div
         style={{
           display: "flex",
@@ -330,7 +369,7 @@ async function DailySpendingSection({
         <span>{fmtShort(dailyStart)}</span>
         <span>{fmtShort(todayUTC)}</span>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -342,16 +381,20 @@ async function ActivitySection({
   activityStart: Date;
 }) {
   const countByDate = await getActivityCounts(userId, activityStart);
-  return <ActivityGrid countByDate={countByDate} />;
+  return (
+    <div className="mint-fadein">
+      <ActivityGrid countByDate={countByDate} />
+    </div>
+  );
 }
 
 async function RecentActivitySection({ userId }: { userId: string }) {
   const recentTransactions = await getRecentTransactions(userId);
   if (recentTransactions.length === 0) {
-    return <p className="mint-muted">No transactions yet.</p>;
+    return <p className="mint-muted mint-fadein">No transactions yet.</p>;
   }
   return (
-    <div className="mint-act">
+    <div className="mint-act mint-fadein">
       {recentTransactions.map((t) => (
         <div key={t.id} className="mint-row">
           <div className="mint-ic">
@@ -371,23 +414,6 @@ async function RecentActivitySection({ userId }: { userId: string }) {
             {t.type === "income" ? "+" : "−"}
             {formatCurrency(Number(t.amount))}
           </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// 14-day expense bars; days over ₱300 get the darker gradient.
-function CashflowBars({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values);
-  return (
-    <div className="mint-bars">
-      {values.map((v, i) => (
-        <div key={i} className={"mint-bar" + (v > 300 ? " hi" : "")}>
-          <div
-            className="b"
-            style={{ height: `${Math.max(6, (v / max) * 120)}px` }}
-          />
         </div>
       ))}
     </div>
