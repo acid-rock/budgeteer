@@ -1,7 +1,12 @@
+"use client";
+
+import { PieChart, Pie, Cell } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { CHART_PALETTE } from "@/lib/colors";
 
-// Spending-share donut — pure SVG, works in server or client components.
+// Spending-share donut, built on Recharts. Per-segment hover gives a subtle
+// brightness highlight (see .mint-donut .arc in globals.css); the breakdown is
+// read off the legend beside it.
 export function Donut({
   segments,
   total,
@@ -15,20 +20,10 @@ export function Donut({
   stroke?: number;
   centerLabel?: string;
 }) {
-  const r = 42;
-  const C = 2 * Math.PI * r;
-  let acc = 0;
-  const arcs = segments.map((it, i) => {
-    const pct = total > 0 ? it.amount / total : 0;
-    const arc = {
-      color: CHART_PALETTE[i % CHART_PALETTE.length],
-      dash: pct * C,
-      gap: C - pct * C,
-      offset: -acc * C,
-    };
-    acc += pct;
-    return arc;
-  });
+  const data = segments.map((s) => ({
+    name: s.name,
+    value: s.amount,
+  }));
 
   // Scale the center figure down as it grows so 5–6 digit totals stay inside
   // the hole. Sizes are relative to the donut so it holds at any `size`.
@@ -37,27 +32,33 @@ export function Donut({
   const fontPx =
     (len <= 9 ? 0.135 : len <= 11 ? 0.115 : len <= 13 ? 0.097 : 0.083) * size;
 
+  const outerRadius = size / 2 - 4;
+  const innerRadius = Math.max(outerRadius - stroke, 0);
+
   return (
     <div className="mint-donut" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox="0 0 100 100">
-        <g transform="rotate(-90 50 50)">
-          <circle cx="50" cy="50" r={r} fill="none" stroke="#EEF2EA" strokeWidth={stroke} />
-          {arcs.map((a, i) => (
-            <circle
+      <PieChart width={size} height={size}>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={innerRadius}
+          outerRadius={outerRadius}
+          startAngle={90}
+          endAngle={-270}
+          stroke="none"
+        >
+          {data.map((_, i) => (
+            <Cell
               key={i}
-              cx="50"
-              cy="50"
-              r={r}
-              fill="none"
-              stroke={a.color}
-              strokeWidth={stroke}
-              strokeDasharray={`${a.dash} ${a.gap}`}
-              strokeDashoffset={a.offset}
-              strokeLinecap="butt"
+              className="arc"
+              fill={CHART_PALETTE[i % CHART_PALETTE.length]}
             />
           ))}
-        </g>
-      </svg>
+        </Pie>
+      </PieChart>
       <div className="ctr">
         <span className="b">{centerLabel}</span>
         <span className="t num" style={{ fontSize: `${fontPx}px` }}>

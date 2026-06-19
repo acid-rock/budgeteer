@@ -360,6 +360,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 .mint-donut .ctr .b {
   font-size: 11px;
@@ -407,20 +408,6 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   gap: 4px;
-}
-.mint-bar .b {
-  width: 100%;
-  border-radius: 6px 6px 3px 3px;
-  background: linear-gradient(180deg, #bff24a, #7fce3e);
-  min-height: 4px;
-}
-.mint-bar.hi .b {
-  background: linear-gradient(180deg, var(--green2), var(--green));
-}
-.mint-bar .d {
-  font-size: 10px;
-  color: var(--muted);
-  text-align: center;
 }
 
 /* activity list rows */
@@ -927,6 +914,122 @@ body {
   height: var(--hc);
   border-radius: var(--hcr);
   display: block;
+}
+
+/* ── motion: chart entrance animations, data-bearing hovers, skeletons ────── */
+
+/* donut: gentle entrance; hovering a segment highlights it (title carries
+   the "<category>: <percentage>" tooltip — see Donut.tsx) */
+.mint-donut svg {
+  animation: mint-donut-in 0.5s ease-out both;
+}
+@keyframes mint-donut-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.mint-donut .arc {
+  transition: filter 0.15s ease;
+}
+.mint-donut .arc:hover {
+  filter: brightness(1.15);
+}
+
+/* activity heatmap: hovering a day highlights it (title carries the
+   "<date>: <count>" tooltip — see ActivityGrid.tsx) */
+.heat-cells i {
+  transition: transform 0.12s ease;
+}
+.heat-cells i:hover {
+  transform: scale(1.4);
+  position: relative;
+  z-index: 1;
+}
+
+/* progress fills (top spending, budgets, reports share bars) grow in on mount */
+@keyframes mint-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.mint-track .fill,
+.mint-btrack .fill,
+.mint-cell-bar .fill {
+  transform-origin: left;
+  animation: mint-grow-x 0.6s ease-out both;
+}
+
+/* themed tooltip box for the Recharts donut + daily-spending bar chart */
+.mint-tooltip {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  box-shadow: 0 8px 20px rgba(14, 90, 60, 0.14);
+}
+
+/* content fading in once a Suspense boundary resolves */
+@keyframes mint-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mint-fadein {
+  animation: mint-fadein 0.4s ease-out both;
+}
+
+/* skeleton loading placeholders for Suspense fallbacks */
+@keyframes mint-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.mint-skel {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    #eef2ea 37%,
+    var(--line) 63%
+  );
+  background-size: 400% 100%;
+  animation: mint-shimmer 1.3s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mint-donut svg,
+  .mint-track .fill,
+  .mint-btrack .fill,
+  .mint-cell-bar .fill,
+  .mint-fadein {
+    animation: none !important;
+  }
+  .heat-cells i:hover {
+    transform: none;
+  }
+  .mint-skel {
+    animation-duration: 2.5s;
+  }
 }
 
 /* ── responsive ────────────────────────────────────────────────────────────
