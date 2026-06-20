@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { authConfig } from "@/auth.config";
+import { logger } from "@/lib/logger";
 
 const STARTER_CATEGORIES: { name: string; kind: "income" | "expense" }[] = [
   { name: "Salary", kind: "income" },
@@ -100,7 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return true;
       } catch (err) {
-        console.error("signIn callback error:", err);
+        logger.error("signIn callback error", err);
         return false;
       }
     },

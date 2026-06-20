@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling } from "@/lib/http";
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -12,13 +13,13 @@ export async function GET() {
     orderBy: [{ kind: "asc" }, { name: "asc" }],
   });
   return NextResponse.json(categories);
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
+  const body = await parseJson(request);
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const kind = body.kind === "income" ? "income" : "expense";
 
@@ -40,4 +41,4 @@ export async function POST(request: Request) {
     }
     throw e;
   }
-}
+});

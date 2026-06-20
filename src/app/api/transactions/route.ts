@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { serializeTransaction } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling } from "@/lib/http";
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -13,13 +14,13 @@ export async function GET() {
     include: { category: true },
   });
   return NextResponse.json(transactions.map(serializeTransaction));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
+  const body = await parseJson(request);
   const { type, amount, date, categoryId, note } = body;
 
   if (type !== "income" && type !== "expense") {
@@ -59,4 +60,4 @@ export async function POST(request: Request) {
     include: { category: true },
   });
   return NextResponse.json(serializeTransaction(transaction), { status: 201 });
-}
+});

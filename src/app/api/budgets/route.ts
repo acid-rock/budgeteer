@@ -3,8 +3,9 @@ import { prisma } from "@/lib/db";
 import { monthStringToDate } from "@/lib/utils";
 import { serializeBudget } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling } from "@/lib/http";
 
-export async function GET(request: Request) {
+export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -17,13 +18,13 @@ export async function GET(request: Request) {
     orderBy: { month: "desc" },
   });
   return NextResponse.json(budgets.map(serializeBudget));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
+  const body = await parseJson(request);
   const { categoryId, month, limit } = body;
 
   if (!categoryId || !month) {
@@ -56,4 +57,4 @@ export async function POST(request: Request) {
     include: { category: true },
   });
   return NextResponse.json(serializeBudget(budget), { status: 201 });
-}
+});

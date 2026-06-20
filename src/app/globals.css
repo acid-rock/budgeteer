@@ -117,17 +117,60 @@ body {
   align-items: center;
   gap: 12px;
 }
+.mint-monthwrap {
+  position: relative;
+}
 .mint-month {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: inherit;
   font-size: 13.5px;
   font-weight: 600;
+  line-height: 1;
   color: var(--ink);
   background: var(--bg);
   border: 1px solid var(--line);
   padding: 8px 13px;
   border-radius: 10px;
+  cursor: pointer;
+}
+.mint-monthmenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 168px;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(14, 90, 60, 0.14);
+}
+.mint-monthmenu button {
+  text-align: left;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mint-monthmenu button:hover {
+  background: var(--bg);
+}
+.mint-monthmenu button.on {
+  background: var(--green);
+  color: #fff;
 }
 .mint-avatar {
   width: 36px;
@@ -1129,8 +1172,9 @@ body {
   .mint-brow .top {
     flex-wrap: wrap;
   }
-  /* The month pill is non-functional today (see TopBar TODO); hide on phones. */
-  .mint-month {
+  /* Month switcher is desktop-only for now — keep the phone top bar uncluttered
+     (the dashboard still defaults to the current month on phones). */
+  .mint-monthwrap {
     display: none;
   }
   /* Keep heatmap cells square and let the grid scroll sideways instead of

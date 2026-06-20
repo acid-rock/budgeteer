@@ -62,6 +62,24 @@ export const getActivityCounts = cache(async (userId: string, activityStart: Dat
   return countByDate;
 });
 
+// Distinct calendar months (UTC, "YYYY-MM") that have at least one transaction
+// for this user, newest first. Powers the dashboard month switcher so it only
+// offers months that actually have data. `distinct: ["date"]` keeps this bounded
+// to one row per active day rather than one per transaction. Dates are stored at
+// UTC midnight, so the UTC month slice matches `monthRange`'s UTC boundaries.
+export const getTransactionMonths = cache(async (userId: string) => {
+  const rows = await prisma.transaction.findMany({
+    where: { userId },
+    select: { date: true },
+    distinct: ["date"],
+  });
+  const months = new Set<string>();
+  for (const r of rows) {
+    months.add(r.date.toISOString().slice(0, 7));
+  }
+  return [...months].sort().reverse();
+});
+
 export const getDailySpending = cache(async (userId: string, dailyStart: Date) => {
   const rows = await prisma.transaction.groupBy({
     by: ["date"],
