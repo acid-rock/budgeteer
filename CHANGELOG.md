@@ -29,6 +29,34 @@ All notable changes to Budgeteer. Format loosely follows
     `src/auth.ts`.
   - **Tests.** +5 malformed-JSON → 400 cases across transactions / categories /
     budgets; suite at 133 passing.
+- **Production hardening, Phase 2 — security & data hardening.**
+  - **Security headers.** `next.config.ts` now sets `X-Content-Type-Options:
+    nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+    strict-origin-when-cross-origin`, `Strict-Transport-Security` (production
+    only), and a **report-only** `Content-Security-Policy` on every route. CSP is
+    report-only for now because Next emits inline scripts/styles; it needs nonce
+    wiring + a report endpoint before it can be enforced.
+  - **Atomic multi-step writes.** Wrapped the check-then-write races in
+    `prisma.$transaction`: transaction create/PATCH (category-ownership check +
+    write), budget create (category check + upsert), and category delete (usage
+    count + delete, with the `onDelete: Restrict` FK as the backstop). New
+    `NotFoundError` / `ConflictError` in `src/lib/http.ts` map in-transaction
+    failures to 404 / 409.
+  - **Input validation with Zod.** Added `zod`; per-route schemas live in
+    `src/lib/schemas.ts` (parsed via `parseWith()` → `400` with the first issue's
+    message). Adds protections the hand-rolled checks lacked: unparseable dates
+    rejected, `note` ≤ 500 chars, category `name` ≤ 80, all trimmed. POST
+    `/categories` keeps its lenient "unknown kind → expense" default; PATCH stays
+    strict.
+  - **Rate limiting (Upstash Redis).** `src/middleware.ts` now throttles `/api/*`
+    per IP (sliding window, 100 req/60s) and returns `429` with `X-RateLimit-*` /
+    `Retry-After` headers when exceeded, before any handler or DB work. Backed by
+    `@upstash/ratelimit` + `@upstash/redis` (`src/lib/rate-limit.ts`); disabled
+    gracefully when `UPSTASH_REDIS_REST_URL` / `_TOKEN` are unset (local/CI). Set
+    those env vars in the host (incl. at build time — edge middleware inlines env
+    on build). Verified live: 120 requests → first 100 pass, next 20 get `429`.
+  - **Tests.** +`$transaction` mocks and invalid-date / oversized-note cases;
+    suite at 135 passing.
 
 ### Changed
 - **Dashboard month switcher.** The top-bar month pill is now functional (was a
