@@ -53,6 +53,15 @@ function jsonReq(url: string, method: string, body: unknown) {
   });
 }
 
+// A request whose body is not valid JSON, to exercise the parseJson guard.
+function malformedReq(url: string, method: string) {
+  return new Request(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: "{ not valid json",
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -104,6 +113,14 @@ describe("POST /api/transactions", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await POST(jsonReq(url, "POST", { type: "expense", amount: 100, categoryId: "cat-1" }));
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(malformedReq(url, "POST"));
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toMatch(/json/i);
   });
 
   it("returns 400 for an invalid type value", async () => {
@@ -193,6 +210,12 @@ describe("PATCH /api/transactions/[id]", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await PATCH(jsonReq(url, "PATCH", { amount: 2000 }), params);
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await PATCH(malformedReq(url, "PATCH"), params);
+    expect(response.status).toBe(400);
   });
 
   it("returns 400 for an invalid type value", async () => {

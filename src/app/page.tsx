@@ -26,12 +26,25 @@ export const dynamic = "force-dynamic";
 
 const DAY_MS = 86_400_000;
 
-export default async function DashboardPage() {
+function isValidMonth(v: string | undefined): v is string {
+  return !!v && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const month = dateToMonthString();
+  // The TopBar month pill drives this via ?month=; fall back to the current
+  // month when it's absent or malformed. Only the month-scoped panels (stats,
+  // category donut, top spending) follow it — the activity heatmap and 14-day
+  // chart are rolling windows anchored to today.
+  const { month: requestedMonth } = await searchParams;
+  const month = isValidMonth(requestedMonth) ? requestedMonth : dateToMonthString();
   const { start, end } = monthRange(month);
 
   // Anchor "today" to the app timezone for the rolling-window queries.
@@ -51,10 +64,11 @@ export default async function DashboardPage() {
   );
   const greeting =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const [monthYear, monthNum] = month.split("-").map(Number);
   const monthName = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
     month: "long",
-  }).format(new Date());
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(monthYear, monthNum - 1, 1)));
 
   return (
     <>
@@ -75,7 +89,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <Suspense fallback={<StatsFallback />}>
+      <Suspense key={`stats-${month}`} fallback={<StatsFallback />}>
         <StatsSection userId={userId} start={start} end={end} />
       </Suspense>
 
@@ -87,7 +101,7 @@ export default async function DashboardPage() {
               {monthName}
             </span>
           </div>
-          <Suspense fallback={<DonutFallback />}>
+          <Suspense key={`donut-${month}`} fallback={<DonutFallback />}>
             <SpendingDonutSection userId={userId} start={start} end={end} />
           </Suspense>
         </div>
@@ -139,7 +153,7 @@ export default async function DashboardPage() {
               Budgets
             </Link>
           </div>
-          <Suspense fallback={<ListFallback />}>
+          <Suspense key={`top-${month}`} fallback={<ListFallback />}>
             <TopSpendingSection userId={userId} start={start} end={end} />
           </Suspense>
         </div>

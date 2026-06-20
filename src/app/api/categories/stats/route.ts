@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getRequiredUser } from "@/lib/session";
+import { withErrorHandling } from "@/lib/http";
 
 export interface CategoryStat {
   categoryId: string;
@@ -11,7 +12,7 @@ export interface CategoryStat {
 // Per-category transaction count + summed amount (all-time) for the signed-in
 // user. Powers the Categories card grid. A category is always one kind, so the
 // summed amount is naturally that category's income or expense total.
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const userId = await getRequiredUser();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,4 +30,4 @@ export async function GET() {
     total: Number(g._sum.amount ?? 0),
   }));
   return NextResponse.json(stats);
-}
+});
