@@ -5,6 +5,7 @@ import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
 import { CHART_PALETTE } from "@/lib/colors";
 import { Donut } from "@/components/Donut";
+import { ReportSkeleton } from "@/components/Skeletons";
 import type { MonthlyReport } from "@/types";
 
 async function fetchReport(month: string): Promise<MonthlyReport> {
@@ -44,7 +45,7 @@ export default function ReportsPage() {
       </div>
 
       {isLoading || !data ? (
-        <p className="mint-muted">Loading report…</p>
+        <ReportSkeleton />
       ) : (
         <>
           <div className="mint-stats">
