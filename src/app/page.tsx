@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import {
@@ -13,17 +13,38 @@ import {
 import { CHART_PALETTE, colorForCategory } from "@/lib/colors";
 import { ActivityGrid } from "@/components/ActivityGrid";
 import { Donut } from "@/components/Donut";
+import { DailyBarChart } from "@/components/DailyBarChart";
+import {
+  getMonthTotals,
+  getCategorySpending,
+  getRecentTransactions,
+  getActivityCounts,
+  getDailySpending,
+} from "@/lib/dashboard-data";
 
 export const dynamic = "force-dynamic";
 
 const DAY_MS = 86_400_000;
 
-export default async function DashboardPage() {
+function isValidMonth(v: string | undefined): v is string {
+  return !!v && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const month = dateToMonthString();
+  // The TopBar month pill drives this via ?month=; fall back to the current
+  // month when it's absent or malformed. Only the month-scoped panels (stats,
+  // category donut, top spending) follow it — the activity heatmap and 14-day
+  // chart are rolling windows anchored to today.
+  const { month: requestedMonth } = await searchParams;
+  const month = isValidMonth(requestedMonth) ? requestedMonth : dateToMonthString();
   const { start, end } = monthRange(month);
 
   // Anchor "today" to the app timezone for the rolling-window queries.
@@ -32,89 +53,6 @@ export default async function DashboardPage() {
   const todayUTC = new Date(Date.UTC(ty, tm - 1, td));
   const activityStart = new Date(todayUTC.getTime() - 371 * DAY_MS);
   const dailyStart = new Date(todayUTC.getTime() - 13 * DAY_MS);
-
-  const [
-    totalsByType,
-    expenseByCategory,
-    recentTransactions,
-    activityRows,
-    dailyRows,
-  ] = await Promise.all([
-    prisma.transaction.groupBy({
-      by: ["type"],
-      where: { userId, date: { gte: start, lt: end } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.groupBy({
-      by: ["categoryId"],
-      where: { userId, type: "expense", date: { gte: start, lt: end } },
-      _sum: { amount: true },
-      orderBy: { _sum: { amount: "desc" } },
-    }),
-    prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { date: "desc" },
-      take: 5,
-      include: { category: true },
-    }),
-    prisma.transaction.findMany({
-      where: { userId, date: { gte: activityStart } },
-      select: { date: true },
-    }),
-    prisma.transaction.findMany({
-      where: { userId, type: "expense", date: { gte: dailyStart } },
-      select: { date: true, amount: true },
-    }),
-  ]);
-
-  const sumForType = (type: string) =>
-    Number(totalsByType.find((g) => g.type === type)?._sum.amount ?? 0);
-  const totalIncome = sumForType("income");
-  const totalExpenses = sumForType("expense");
-  const netSavings = totalIncome - totalExpenses;
-
-  // Resolve category names for the expense breakdown.
-  const catIds = expenseByCategory.map((g) => g.categoryId);
-  const cats = await prisma.category.findMany({
-    where: { userId, id: { in: catIds } },
-    select: { id: true, name: true },
-  });
-  const nameById = new Map(cats.map((c) => [c.id, c.name]));
-  const spending = expenseByCategory.map((g) => ({
-    name: nameById.get(g.categoryId) ?? "—",
-    amount: Number(g._sum.amount ?? 0),
-  }));
-  const totalSpend = spending.reduce((s, c) => s + c.amount, 0);
-  const legend = spending.slice(0, 6);
-  const topSpending = spending.slice(0, 5);
-  const maxSpend = topSpending[0]?.amount ?? 0;
-
-  // Activity heatmap counts (transactions per day).
-  const countByDate: Record<string, number> = {};
-  for (const r of activityRows) {
-    const k = r.date.toISOString().slice(0, 10);
-    countByDate[k] = (countByDate[k] ?? 0) + 1;
-  }
-
-  // 14-day daily spending series.
-  const dailyMap: Record<string, number> = {};
-  for (const r of dailyRows) {
-    const k = r.date.toISOString().slice(0, 10);
-    dailyMap[k] = (dailyMap[k] ?? 0) + Number(r.amount);
-  }
-  const daily: number[] = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(dailyStart.getTime() + i * DAY_MS)
-      .toISOString()
-      .slice(0, 10);
-    daily.push(dailyMap[d] ?? 0);
-  }
-  const fmtShort = (d: Date) =>
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: APP_TIME_ZONE,
-      month: "short",
-      day: "numeric",
-    }).format(d);
 
   const firstName = (session.user.name ?? "there").split(/\s+/)[0];
   const hour = Number(
@@ -126,10 +64,11 @@ export default async function DashboardPage() {
   );
   const greeting =
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const [monthYear, monthNum] = month.split("-").map(Number);
   const monthName = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
     month: "long",
-  }).format(new Date());
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(monthYear, monthNum - 1, 1)));
 
   return (
     <>
@@ -150,36 +89,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mint-stats">
-        <div className="mint-stat">
-          <div className="lbl">
-            <span className="mint-dot" style={{ background: "var(--pos)" }} />
-            Income
-          </div>
-          <div className="val num">{formatCurrency(totalIncome)}</div>
-        </div>
-        <div className="mint-stat">
-          <div className="lbl">
-            <span className="mint-dot" style={{ background: "var(--neg)" }} />
-            Expenses
-          </div>
-          <div className="val num">{formatCurrency(totalExpenses)}</div>
-          {totalIncome > 0 && (
-            <div className="sub">
-              {Math.round((totalExpenses / totalIncome) * 100)}% of income spent
-            </div>
-          )}
-        </div>
-        <div className="mint-stat feat">
-          <div className="lbl">Net savings</div>
-          <div className="val num">{formatCurrency(netSavings)}</div>
-          <div className="sub">
-            {netSavings >= 0
-              ? "You stayed in the green this month."
-              : "You spent more than you earned."}
-          </div>
-        </div>
-      </div>
+      <Suspense key={`stats-${month}`} fallback={<StatsFallback />}>
+        <StatsSection userId={userId} start={start} end={end} />
+      </Suspense>
 
       <div className="mint-grid">
         <div className="mint-panel">
@@ -189,25 +101,9 @@ export default async function DashboardPage() {
               {monthName}
             </span>
           </div>
-          {totalSpend === 0 ? (
-            <p className="mint-muted">No expenses this month yet.</p>
-          ) : (
-            <div className="mint-donut-wrap">
-              <Donut segments={legend} total={totalSpend} />
-              <div className="mint-legend">
-                {legend.map((c, i) => (
-                  <div key={c.name} className="mint-leg">
-                    <span
-                      className="mint-dot"
-                      style={{ background: CHART_PALETTE[i] }}
-                    />
-                    <span className="nm">{c.name}</span>
-                    <span className="am num">{formatCurrency(c.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <Suspense key={`donut-${month}`} fallback={<DonutFallback />}>
+            <SpendingDonutSection userId={userId} start={start} end={end} />
+          </Suspense>
         </div>
         <div className="mint-panel">
           <div className="mint-ph">
@@ -216,19 +112,13 @@ export default async function DashboardPage() {
               Last 14 days
             </span>
           </div>
-          <CashflowBars values={daily} />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 11,
-              color: "var(--muted)",
-              marginTop: 8,
-            }}
-          >
-            <span>{fmtShort(dailyStart)}</span>
-            <span>{fmtShort(todayUTC)}</span>
-          </div>
+          <Suspense fallback={<DailyFallback />}>
+            <DailySpendingSection
+              userId={userId}
+              dailyStart={dailyStart}
+              todayUTC={todayUTC}
+            />
+          </Suspense>
         </div>
       </div>
 
@@ -239,7 +129,9 @@ export default async function DashboardPage() {
             Last year
           </Link>
         </div>
-        <ActivityGrid countByDate={countByDate} />
+        <Suspense fallback={<div className="mint-skel" style={{ height: 130 }} />}>
+          <ActivitySection userId={userId} activityStart={activityStart} />
+        </Suspense>
       </div>
 
       <div className="mint-grid">
@@ -250,35 +142,9 @@ export default async function DashboardPage() {
               View all
             </Link>
           </div>
-          {recentTransactions.length === 0 ? (
-            <p className="mint-muted">No transactions yet.</p>
-          ) : (
-            <div className="mint-act">
-              {recentTransactions.map((t) => (
-                <div key={t.id} className="mint-row">
-                  <div className="mint-ic">
-                    <div
-                      className="g"
-                      style={{
-                        background: colorForCategory(t.category?.name ?? "—"),
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <div className="nm">{t.category?.name ?? "—"}</div>
-                    <div className="mt">
-                      {formatDate(t.date)}
-                      {t.note ? ` · ${t.note}` : ""}
-                    </div>
-                  </div>
-                  <div className={"am" + (t.type === "income" ? " pos" : "")}>
-                    {t.type === "income" ? "+" : "−"}
-                    {formatCurrency(Number(t.amount))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Suspense fallback={<ListFallback />}>
+            <RecentActivitySection userId={userId} />
+          </Suspense>
         </div>
         <div className="mint-panel">
           <div className="mint-ph">
@@ -287,46 +153,281 @@ export default async function DashboardPage() {
               Budgets
             </Link>
           </div>
-          {topSpending.length === 0 ? (
-            <p className="mint-muted">No expenses this month.</p>
-          ) : (
-            <div className="mint-tlist">
-              {topSpending.map((c, i) => (
-                <div key={c.name} className="mint-trow">
-                  <div className="top">
-                    <span className="nm">{c.name}</span>
-                    <span className="am num">{formatCurrency(c.amount)}</span>
-                  </div>
-                  <div className="mint-track">
-                    <div
-                      className="fill"
-                      style={{
-                        width: `${maxSpend > 0 ? (c.amount / maxSpend) * 100 : 0}%`,
-                        background: CHART_PALETTE[i],
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Suspense key={`top-${month}`} fallback={<ListFallback />}>
+            <TopSpendingSection userId={userId} start={start} end={end} />
+          </Suspense>
         </div>
       </div>
     </>
   );
 }
 
-// 14-day expense bars; days over ₱300 get the darker gradient.
-function CashflowBars({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values);
+function StatsFallback() {
+  return (
+    <div className="mint-stats">
+      <div className="mint-stat">
+        <div className="lbl">
+          <span className="mint-dot" style={{ background: "var(--pos)" }} />
+          Income
+        </div>
+        <div className="mint-skel" style={{ height: 30, width: "60%" }} />
+      </div>
+      <div className="mint-stat">
+        <div className="lbl">
+          <span className="mint-dot" style={{ background: "var(--neg)" }} />
+          Expenses
+        </div>
+        <div className="mint-skel" style={{ height: 30, width: "60%" }} />
+      </div>
+      <div className="mint-stat feat">
+        <div className="lbl">Net savings</div>
+        <div
+          className="mint-skel"
+          style={{ height: 30, width: "60%", background: "rgba(255,255,255,0.25)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DonutFallback() {
+  return (
+    <div className="mint-donut-wrap">
+      <div className="mint-skel" style={{ width: 180, height: 180, borderRadius: "50%" }} />
+      <div className="mint-legend">
+        {[85, 70, 90, 60].map((w, i) => (
+          <div key={i} className="mint-skel" style={{ height: 14, width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DailyFallback() {
+  const heights = [40, 70, 30, 90, 55, 65, 35, 80, 45, 95, 60, 50, 75, 40];
   return (
     <div className="mint-bars">
-      {values.map((v, i) => (
-        <div key={i} className={"mint-bar" + (v > 300 ? " hi" : "")}>
-          <div
-            className="b"
-            style={{ height: `${Math.max(6, (v / max) * 120)}px` }}
-          />
+      {heights.map((h, i) => (
+        <div key={i} className="mint-bar">
+          <div className="mint-skel" style={{ height: h }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ListFallback() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="mint-skel" style={{ height: 38 }} />
+      ))}
+    </div>
+  );
+}
+
+async function StatsSection({
+  userId,
+  start,
+  end,
+}: {
+  userId: string;
+  start: Date;
+  end: Date;
+}) {
+  const { totalIncome, totalExpenses, netSavings } = await getMonthTotals(
+    userId,
+    start,
+    end
+  );
+  return (
+    <div className="mint-stats mint-fadein">
+      <div className="mint-stat">
+        <div className="lbl">
+          <span className="mint-dot" style={{ background: "var(--pos)" }} />
+          Income
+        </div>
+        <div className="val num">{formatCurrency(totalIncome)}</div>
+      </div>
+      <div className="mint-stat">
+        <div className="lbl">
+          <span className="mint-dot" style={{ background: "var(--neg)" }} />
+          Expenses
+        </div>
+        <div className="val num">{formatCurrency(totalExpenses)}</div>
+        {totalIncome > 0 && (
+          <div className="sub">
+            {Math.round((totalExpenses / totalIncome) * 100)}% of income spent
+          </div>
+        )}
+      </div>
+      <div className="mint-stat feat">
+        <div className="lbl">Net savings</div>
+        <div className="val num">{formatCurrency(netSavings)}</div>
+        <div className="sub">
+          {netSavings >= 0
+            ? "You stayed in the green this month."
+            : "You spent more than you earned."}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function SpendingDonutSection({
+  userId,
+  start,
+  end,
+}: {
+  userId: string;
+  start: Date;
+  end: Date;
+}) {
+  const spending = await getCategorySpending(userId, start, end);
+  const totalSpend = spending.reduce((s, c) => s + c.amount, 0);
+  const legend = spending.slice(0, 6);
+
+  if (totalSpend === 0) {
+    return <p className="mint-muted mint-fadein">No expenses this month yet.</p>;
+  }
+  return (
+    <div className="mint-donut-wrap mint-fadein">
+      <Donut segments={legend} total={totalSpend} />
+      <div className="mint-legend">
+        {legend.map((c, i) => (
+          <div key={c.name} className="mint-leg">
+            <span className="mint-dot" style={{ background: CHART_PALETTE[i] }} />
+            <span className="nm">{c.name}</span>
+            <span className="am num">{formatCurrency(c.amount)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function TopSpendingSection({
+  userId,
+  start,
+  end,
+}: {
+  userId: string;
+  start: Date;
+  end: Date;
+}) {
+  const spending = await getCategorySpending(userId, start, end);
+  const topSpending = spending.slice(0, 5);
+  const maxSpend = topSpending[0]?.amount ?? 0;
+
+  if (topSpending.length === 0) {
+    return <p className="mint-muted mint-fadein">No expenses this month.</p>;
+  }
+  return (
+    <div className="mint-tlist mint-fadein">
+      {topSpending.map((c, i) => (
+        <div key={c.name} className="mint-trow">
+          <div className="top">
+            <span className="nm">{c.name}</span>
+            <span className="am num">{formatCurrency(c.amount)}</span>
+          </div>
+          <div className="mint-track">
+            <div
+              className="fill"
+              style={{
+                width: `${maxSpend > 0 ? (c.amount / maxSpend) * 100 : 0}%`,
+                background: CHART_PALETTE[i],
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function DailySpendingSection({
+  userId,
+  dailyStart,
+  todayUTC,
+}: {
+  userId: string;
+  dailyStart: Date;
+  todayUTC: Date;
+}) {
+  const dailyMap = await getDailySpending(userId, dailyStart);
+  const fmtShort = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: APP_TIME_ZONE,
+      month: "short",
+      day: "numeric",
+    }).format(d);
+  const daily: { label: string; amount: number }[] = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(dailyStart.getTime() + i * DAY_MS);
+    const iso = d.toISOString().slice(0, 10);
+    daily.push({ label: fmtShort(d), amount: dailyMap[iso] ?? 0 });
+  }
+
+  return (
+    <div className="mint-fadein">
+      <DailyBarChart data={daily} />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 11,
+          color: "var(--muted)",
+          marginTop: 8,
+        }}
+      >
+        <span>{fmtShort(dailyStart)}</span>
+        <span>{fmtShort(todayUTC)}</span>
+      </div>
+    </div>
+  );
+}
+
+async function ActivitySection({
+  userId,
+  activityStart,
+}: {
+  userId: string;
+  activityStart: Date;
+}) {
+  const countByDate = await getActivityCounts(userId, activityStart);
+  return (
+    <div className="mint-fadein">
+      <ActivityGrid countByDate={countByDate} />
+    </div>
+  );
+}
+
+async function RecentActivitySection({ userId }: { userId: string }) {
+  const recentTransactions = await getRecentTransactions(userId);
+  if (recentTransactions.length === 0) {
+    return <p className="mint-muted mint-fadein">No transactions yet.</p>;
+  }
+  return (
+    <div className="mint-act mint-fadein">
+      {recentTransactions.map((t) => (
+        <div key={t.id} className="mint-row">
+          <div className="mint-ic">
+            <div
+              className="g"
+              style={{ background: colorForCategory(t.category?.name ?? "—") }}
+            />
+          </div>
+          <div>
+            <div className="nm">{t.category?.name ?? "—"}</div>
+            <div className="mt">
+              {formatDate(t.date)}
+              {t.note ? ` · ${t.note}` : ""}
+            </div>
+          </div>
+          <div className={"am" + (t.type === "income" ? " pos" : "")}>
+            {t.type === "income" ? "+" : "−"}
+            {formatCurrency(Number(t.amount))}
+          </div>
         </div>
       ))}
     </div>

@@ -11,6 +11,7 @@ const { mockGetRequiredUser, mockPrisma } = vi.hoisted(() => ({
       delete: vi.fn(),
     },
     category: { findFirst: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -51,8 +52,21 @@ function jsonReq(url: string, method: string, body: unknown) {
   });
 }
 
+// A request whose body is not valid JSON, to exercise the parseJson guard.
+function malformedReq(url: string, method: string) {
+  return new Request(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: "{ not valid json",
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  // Interactive transactions run the callback with the mock client as `tx`.
+  mockPrisma.$transaction.mockImplementation(
+    (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma)
+  );
 });
 
 // ─── GET /api/budgets ─────────────────────────────────────────────────────────
@@ -118,6 +132,13 @@ describe("POST /api/budgets", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await POST(jsonReq(url, "POST", { categoryId: "cat-1", month: "2026-05", limit: 5000 }));
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(malformedReq(url, "POST"));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/json/i);
   });
 
   it("returns 400 when categoryId is missing", async () => {

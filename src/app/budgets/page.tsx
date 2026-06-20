@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
 import { BudgetRow } from "@/components/BudgetRow";
+import { BudgetsSkeleton } from "@/components/Skeletons";
 import type { Budget, Category, MonthlyReport } from "@/types";
 
 interface BudgetWithCategory extends Budget {
@@ -100,7 +101,7 @@ export default function BudgetsPage() {
       </div>
 
       {loading ? (
-        <p className="mint-muted">Loading budgets…</p>
+        <BudgetsSkeleton />
       ) : expenseCategories.length === 0 ? (
         <p className="mint-muted">
           No expense categories yet — add one to set budgets.

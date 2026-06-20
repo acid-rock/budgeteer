@@ -3,6 +3,136 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-21
+
+### Added
+- **Production hardening, Phase 3 — tooling & polish.**
+  - **ESLint.** Added a flat config (`eslint.config.mjs`) that extends
+    `eslint-config-next` v16's native flat config; `npm run lint` now runs
+    `eslint .` and passes clean. (`next lint` was removed in Next 16.)
+  - **Transaction pagination.** `GET /api/transactions` is now cursor-paginated —
+    `?limit` (default 20, max 100) + `?cursor=<id>`, returning
+    `{ items, nextCursor }` instead of the full list. `TransactionList` uses
+    `useInfiniteQuery` with a **Load more** button (same query key, so mutations
+    elsewhere still invalidate it). Ordered by `date desc, id desc` for a stable
+    cursor across same-day rows.
+  - **Health check.** New public `GET /api/health` (excluded from the auth
+    middleware) runs a `SELECT 1` — `200 { status: "ok" }` when the database is
+    reachable, `503` when not — for load-balancer / uptime probes.
+
+### Changed
+- **Pinned `next-auth`** to the exact `5.0.0-beta.31` (dropped the `^`) to avoid
+  surprise beta bumps.
+- **Extracted the daily-spending "heavy spend" threshold** (₱300) and the two bar
+  colors to named constants in `DailyBarChart.tsx`.
+
+## [Unreleased] — 2026-06-20
+
+### Added
+- **Production hardening, Phase 1 — reliability.** Closes the "uncaught error →
+  raw 500 / silent in prod" gaps ahead of launch.
+  - **App-router error boundaries.** `src/app/error.tsx` (route-segment errors —
+    friendly message + "Try again", no stack trace, surfaces only Next's safe
+    `digest`), `src/app/not-found.tsx` (mint-styled 404), and
+    `src/app/global-error.tsx` (last-resort boundary; since it replaces the root
+    layout it can't use `globals.css`/`.mint` classes, so it's styled inline with
+    the Sprout palette).
+  - **Safe JSON parsing.** New `src/lib/http.ts` `parseJson()` throws a tagged
+    `BadRequestError` on malformed bodies → `400 { error: "Invalid JSON body" }`
+    instead of an unhandled 500. Wired into every mutating route.
+  - **Centralized API error handling.** `withErrorHandling()` wraps all 8 API
+    route handlers: maps `BadRequestError → 400` and Prisma `P2025 → 404` /
+    `P2002 → 409` as a fallback, logs anything unexpected, and returns a sanitized
+    `500 { error: "Something went wrong" }`. Routes keep their own
+    domain-specific messages (e.g. "Category is in use by N transaction(s)…");
+    the wrapper is the safety net for what used to `throw e` into a raw 500.
+  - **Structured logging.** New `src/lib/logger.ts` — zero-dependency logger
+    (one-line JSON in prod for the platform's log drain, readable in dev) as a
+    single swap-in seam for Sentry later. Replaces the `console.error` in
+    `src/auth.ts`.
+  - **Tests.** +5 malformed-JSON → 400 cases across transactions / categories /
+    budgets; suite at 133 passing.
+- **Production hardening, Phase 2 — security & data hardening.**
+  - **Security headers.** `next.config.ts` now sets `X-Content-Type-Options:
+    nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+    strict-origin-when-cross-origin`, `Strict-Transport-Security` (production
+    only), and a **report-only** `Content-Security-Policy` on every route. CSP is
+    report-only for now because Next emits inline scripts/styles; it needs nonce
+    wiring + a report endpoint before it can be enforced.
+  - **Atomic multi-step writes.** Wrapped the check-then-write races in
+    `prisma.$transaction`: transaction create/PATCH (category-ownership check +
+    write), budget create (category check + upsert), and category delete (usage
+    count + delete, with the `onDelete: Restrict` FK as the backstop). New
+    `NotFoundError` / `ConflictError` in `src/lib/http.ts` map in-transaction
+    failures to 404 / 409.
+  - **Input validation with Zod.** Added `zod`; per-route schemas live in
+    `src/lib/schemas.ts` (parsed via `parseWith()` → `400` with the first issue's
+    message). Adds protections the hand-rolled checks lacked: unparseable dates
+    rejected, `note` ≤ 500 chars, category `name` ≤ 80, all trimmed. POST
+    `/categories` keeps its lenient "unknown kind → expense" default; PATCH stays
+    strict.
+  - **Rate limiting (Upstash Redis).** `src/middleware.ts` now throttles `/api/*`
+    per IP (sliding window, 100 req/60s) and returns `429` with `X-RateLimit-*` /
+    `Retry-After` headers when exceeded, before any handler or DB work. Backed by
+    `@upstash/ratelimit` + `@upstash/redis` (`src/lib/rate-limit.ts`); disabled
+    gracefully when `UPSTASH_REDIS_REST_URL` / `_TOKEN` are unset (local/CI). Set
+    those env vars in the host (incl. at build time — edge middleware inlines env
+    on build). Verified live: 120 requests → first 100 pass, next 20 get `429`.
+  - **Tests.** +`$transaction` mocks and invalid-date / oversized-note cases;
+    suite at 135 passing.
+
+### Changed
+- **Dashboard month switcher.** The top-bar month pill is now functional (was a
+  display-only caret). Clicking it opens a dropdown; picking a month navigates to
+  `/?month=YYYY-MM`, and the dashboard scopes its month-based panels (stats,
+  spending-by-category donut, top spending) to it. The activity heatmap and 14-day
+  chart stay rolling windows anchored to today. The current month uses a clean `/`
+  URL. Closes the long-standing `TopBar` TODO; still desktop-only on phones to keep
+  the mobile top bar uncluttered.
+  - **Only months with data are offered.** The dropdown lists the distinct months
+    that actually have transactions (new `getTransactionMonths()`, server-fetched
+    in the layout), always including the current month so it's selectable even
+    with no data yet. The active month is also surfaced client-side so a
+    hand-edited `?month=` URL still appears.
+  - **Loading skeleton on switch.** The month-scoped Suspense boundaries are now
+    keyed by month, so changing months re-shows their skeletons while the new
+    data loads — a same-route `?month=` change is otherwise a transition that
+    would keep the stale panels on screen. Non-month panels stay put (no flicker).
+- **Dashboard performance — Suspense streaming + DB-side aggregation.** The
+  dashboard was the only route that blocked on *all* its DB queries before
+  painting, so navigating to it from another page felt slow. Each panel (stats,
+  spending donut, daily spending, activity, recent activity, top spending) now
+  streams in independently behind its own `<Suspense>` boundary with a loading
+  skeleton, so the header and shell appear instantly. Data fetching moved to
+  `src/lib/dashboard-data.ts`, wrapped in React `cache()` so panels that share a
+  query (e.g. donut + top-spending) hit the DB once. Per-day activity and
+  daily-spending series are now aggregated in Postgres (`groupBy` with
+  `_count` / `_sum`) instead of pulling one row per transaction and counting in JS.
+- **Charts moved to Recharts.** The hand-rolled donut and daily-spending bars were
+  replaced with [Recharts](https://recharts.org) — `src/components/Donut.tsx`
+  (rewritten) and the new `src/components/DailyBarChart.tsx`. The donut keeps the
+  exact same prop API, so its call sites (Dashboard, Reports) didn't change. The
+  daily-spending bars show a themed hover tooltip (`<date>: <amount>`). The
+  activity heatmap was intentionally left as a custom component.
+- **Activity heatmap hover tooltip.** Hovering a day cell now shows a styled
+  tooltip (`<date>: <count> transactions`) that matches the chart theme, replacing
+  the plain browser `title`. `ActivityGrid` became a client component to track
+  hover state; the tooltip is anchored to a non-scrolling wrapper around the grid
+  so it isn't clipped by the heatmap's horizontal scroll on phones.
+- **Entrance animations + loading skeletons across the app.** Charts and panels
+  fade/scale in on load, and progress bars grow in. The client-fetched pages
+  (Budgets, Reports, Categories, Transactions) now show shimmer skeletons that
+  mirror each page's real layout — new `src/components/Skeletons.tsx` — instead of
+  the old plain "Loading…" text, so there's no layout shift when data arrives. All
+  motion respects `prefers-reduced-motion`.
+
+### Fixed
+- **Login page was reachable while authenticated.** The middleware deliberately
+  excludes `/login` from its guard, so a signed-in user could still open it.
+  `/login` now calls `auth()` and redirects to the dashboard when a session
+  exists. No redirect loop: the dashboard only bounces *unauthenticated* users the
+  other way.
+
 ## [Unreleased] — 2026-06-18
 
 ### Changed

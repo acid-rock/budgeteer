@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db";
 import { monthStringToDate } from "@/lib/utils";
 import { serializeBudget } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling, NotFoundError } from "@/lib/http";
+import { parseWith, budgetCreateSchema } from "@/lib/schemas";
 
-export async function GET(request: Request) {
+export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -17,43 +19,31 @@ export async function GET(request: Request) {
     orderBy: { month: "desc" },
   });
   return NextResponse.json(budgets.map(serializeBudget));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
-  const { categoryId, month, limit } = body;
-
-  if (!categoryId || !month) {
-    return NextResponse.json(
-      { error: "categoryId and month are required" },
-      { status: 400 }
-    );
-  }
-  const numericLimit = Number(limit);
-  if (!Number.isFinite(numericLimit) || numericLimit < 0) {
-    return NextResponse.json(
-      { error: "limit must be a non-negative number" },
-      { status: 400 }
-    );
-  }
-
-  // Verify the category belongs to this user.
-  const category = await prisma.category.findFirst({
-    where: { id: categoryId, userId },
-  });
-  if (!category) {
-    return NextResponse.json({ error: "Category not found" }, { status: 404 });
-  }
-
+  const { categoryId, month, limit } = parseWith(
+    budgetCreateSchema,
+    await parseJson(request)
+  );
   const monthDate = monthStringToDate(month);
-  const budget = await prisma.budget.upsert({
-    where: { categoryId_month: { categoryId, month: monthDate } },
-    create: { categoryId, month: monthDate, limit: numericLimit, userId },
-    update: { limit: numericLimit },
-    include: { category: true },
+
+  // Verify ownership and upsert atomically.
+  const budget = await prisma.$transaction(async (tx) => {
+    const category = await tx.category.findFirst({
+      where: { id: categoryId, userId },
+    });
+    if (!category) throw new NotFoundError("Category not found");
+
+    return tx.budget.upsert({
+      where: { categoryId_month: { categoryId, month: monthDate } },
+      create: { categoryId, month: monthDate, limit, userId },
+      update: { limit },
+      include: { category: true },
+    });
   });
   return NextResponse.json(serializeBudget(budget), { status: 201 });
-}
+});

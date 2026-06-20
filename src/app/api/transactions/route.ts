@@ -2,61 +2,67 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { serializeTransaction } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling, NotFoundError } from "@/lib/http";
+import { parseWith, transactionCreateSchema } from "@/lib/schemas";
 
-export async function GET() {
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const transactions = await prisma.transaction.findMany({
+  const { searchParams } = new URL(request.url);
+  const requestedLimit = Number(searchParams.get("limit"));
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), MAX_LIMIT)
+    : DEFAULT_LIMIT;
+  const cursor = searchParams.get("cursor");
+
+  // Cursor pagination: fetch one extra row to detect whether more remain. The
+  // id tiebreaker keeps ordering stable across days that share a date.
+  const rows = await prisma.transaction.findMany({
     where: { userId },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { id: "desc" }],
     include: { category: true },
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  return NextResponse.json(transactions.map(serializeTransaction));
-}
 
-export async function POST(request: Request) {
+  const hasMore = rows.length > limit;
+  const items = (hasMore ? rows.slice(0, limit) : rows).map(serializeTransaction);
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+  return NextResponse.json({ items, nextCursor });
+});
+
+export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
-  const { type, amount, date, categoryId, note } = body;
+  const { type, amount, date, categoryId, note } = parseWith(
+    transactionCreateSchema,
+    await parseJson(request)
+  );
 
-  if (type !== "income" && type !== "expense") {
-    return NextResponse.json(
-      { error: "type must be 'income' or 'expense'" },
-      { status: 400 }
-    );
-  }
-  const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-    return NextResponse.json(
-      { error: "amount must be a positive number" },
-      { status: 400 }
-    );
-  }
-  if (!categoryId || typeof categoryId !== "string") {
-    return NextResponse.json({ error: "categoryId is required" }, { status: 400 });
-  }
+  // Verify category ownership and create in one transaction so the category
+  // can't be deleted out from under us between the check and the insert.
+  const transaction = await prisma.$transaction(async (tx) => {
+    const category = await tx.category.findFirst({
+      where: { id: categoryId, userId },
+    });
+    if (!category) throw new NotFoundError("Category not found");
 
-  // Verify the category belongs to this user before linking it.
-  const category = await prisma.category.findFirst({
-    where: { id: categoryId, userId },
-  });
-  if (!category) {
-    return NextResponse.json({ error: "Category not found" }, { status: 404 });
-  }
-
-  const transaction = await prisma.transaction.create({
-    data: {
-      type,
-      amount: numericAmount,
-      date: date ? new Date(date) : new Date(),
-      categoryId,
-      note: note || null,
-      userId,
-    },
-    include: { category: true },
+    return tx.transaction.create({
+      data: {
+        type,
+        amount,
+        date: date ?? new Date(),
+        categoryId,
+        note: note || null,
+        userId,
+      },
+      include: { category: true },
+    });
   });
   return NextResponse.json(serializeTransaction(transaction), { status: 201 });
-}
+});

@@ -12,6 +12,7 @@ const { mockGetRequiredUser, mockPrisma } = vi.hoisted(() => ({
     },
     transaction: { count: vi.fn() },
     budget: { count: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -49,8 +50,21 @@ function jsonReq(url: string, method: string, body: unknown) {
   });
 }
 
+// A request whose body is not valid JSON, to exercise the parseJson guard.
+function malformedReq(url: string, method: string) {
+  return new Request(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: "{ not valid json",
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  // Interactive transactions run the callback with the mock client as `tx`.
+  mockPrisma.$transaction.mockImplementation(
+    (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma)
+  );
 });
 
 // ─── GET /api/categories ──────────────────────────────────────────────────────
@@ -104,6 +118,13 @@ describe("POST /api/categories", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await POST(jsonReq("http://localhost/api/categories", "POST", { name: "Test", kind: "expense" }));
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(malformedReq("http://localhost/api/categories", "POST"));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/json/i);
   });
 
   it("returns 400 when name is an empty string", async () => {
@@ -190,6 +211,15 @@ describe("PATCH /api/categories/[id]", () => {
       params
     );
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await PATCH(
+      malformedReq("http://localhost/api/categories/cat-1", "PATCH"),
+      params
+    );
+    expect(response.status).toBe(400);
   });
 
   it("returns 400 when name is an empty string", async () => {

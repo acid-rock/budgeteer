@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { CategoryCard } from "@/components/CategoryRow";
+import { CategoriesSkeleton } from "@/components/Skeletons";
 import type { Category, CategoryKind } from "@/types";
 import type { CategoryStat } from "@/app/api/categories/stats/route";
 
@@ -116,7 +117,7 @@ export default function CategoriesPage() {
       </form>
 
       {isLoading ? (
-        <p className="mint-muted">Loading categories…</p>
+        <CategoriesSkeleton />
       ) : !categories || categories.length === 0 ? (
         <p className="mint-muted">No categories yet — add one above.</p>
       ) : (

@@ -4,7 +4,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { TopBar } from "@/components/TopBar";
 import { auth } from "@/auth";
-import { APP_TIME_ZONE } from "@/lib/utils";
+import { dateToMonthString } from "@/lib/utils";
+import { getTransactionMonths } from "@/lib/dashboard-data";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -36,11 +37,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  const monthLabel = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "long",
-    year: "numeric",
-  }).format(new Date());
+  const currentMonth = dateToMonthString();
+
+  // Months the switcher offers: every month with data, plus the current month so
+  // it's always selectable (e.g. a brand-new user with no transactions yet).
+  const monthOptions = session?.user?.id
+    ? [...new Set([currentMonth, ...(await getTransactionMonths(session.user.id))])]
+        .sort()
+        .reverse()
+    : [currentMonth];
 
   return (
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
@@ -50,7 +55,8 @@ export default async function RootLayout({
             {session?.user ? (
               <>
                 <TopBar
-                  month={monthLabel}
+                  currentMonth={currentMonth}
+                  months={monthOptions}
                   initials={initialsFor(session.user.name, session.user.email)}
                 />
                 <main className="mint-page">{children}</main>

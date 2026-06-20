@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dateToMonthString, monthRange } from "@/lib/utils";
 import { getRequiredUser } from "@/lib/session";
+import { withErrorHandling } from "@/lib/http";
 import type { CategoryReportRow, MonthlyReport } from "@/types";
 
-export async function GET(request: Request) {
+export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -64,4 +65,4 @@ export async function GET(request: Request) {
     byCategory,
   };
   return NextResponse.json(report);
-}
+});

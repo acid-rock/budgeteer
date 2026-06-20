@@ -1,29 +1,51 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import type { Transaction } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TransactionRow } from "./TransactionRow";
+import { TransactionsSkeleton } from "./Skeletons";
 
-async function fetchTransactions(): Promise<Transaction[]> {
-  const res = await fetch("/api/transactions");
+interface TransactionPage {
+  items: Transaction[];
+  nextCursor: string | null;
+}
+
+async function fetchTransactions(
+  cursor: string | null
+): Promise<TransactionPage> {
+  const res = await fetch(
+    cursor ? `/api/transactions?cursor=${cursor}` : "/api/transactions"
+  );
   if (!res.ok) throw new Error("Failed to load transactions");
   return res.json();
 }
 
 export function TransactionList() {
-  const { data, isLoading, isError, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["transactions"],
-    queryFn: fetchTransactions,
+    queryFn: ({ pageParam }) => fetchTransactions(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
   if (isLoading) {
-    return <p className="mint-muted">Loading transactions…</p>;
+    return <TransactionsSkeleton />;
   }
   if (isError) {
     return <p className="mint-err">{(error as Error).message}</p>;
   }
-  if (!data || data.length === 0) {
+
+  const transactions = data?.pages.flatMap((p) => p.items) ?? [];
+  if (transactions.length === 0) {
     return <p className="mint-muted">No transactions yet — add one above.</p>;
   }
 
@@ -31,7 +53,7 @@ export function TransactionList() {
   // newest-first from the API). Grouping on the formatted label keeps the header
   // in lockstep with each row's shown date regardless of timezone.
   const groups: { label: string; items: Transaction[] }[] = [];
-  for (const t of data) {
+  for (const t of transactions) {
     const label = formatDate(t.date);
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.items.push(t);
@@ -61,6 +83,17 @@ export function TransactionList() {
           </div>
         );
       })}
+      {hasNextPage && (
+        <div style={{ textAlign: "center", paddingTop: 16 }}>
+          <button
+            className="mint-btn"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

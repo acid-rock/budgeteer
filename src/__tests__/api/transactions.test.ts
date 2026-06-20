@@ -11,6 +11,7 @@ const { mockGetRequiredUser, mockPrisma } = vi.hoisted(() => ({
       delete: vi.fn(),
     },
     category: { findFirst: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -53,45 +54,89 @@ function jsonReq(url: string, method: string, body: unknown) {
   });
 }
 
+// A request whose body is not valid JSON, to exercise the parseJson guard.
+function malformedReq(url: string, method: string) {
+  return new Request(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: "{ not valid json",
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  // Interactive transactions run the callback with the mock client as `tx`.
+  mockPrisma.$transaction.mockImplementation(
+    (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma)
+  );
 });
 
 // ─── GET /api/transactions ────────────────────────────────────────────────────
 
 describe("GET /api/transactions", () => {
+  const getReq = (qs = "") =>
+    new Request(`http://localhost/api/transactions${qs ? `?${qs}` : ""}`);
+
   it("returns 401 when not authenticated", async () => {
     mockGetRequiredUser.mockResolvedValue(null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(getReq())).status).toBe(401);
   });
 
-  it("returns the user's transactions with amounts serialized to plain numbers", async () => {
+  it("returns a page of transactions with amounts serialized to plain numbers", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([makeTransaction()]);
 
-    const response = await GET();
+    const response = await GET(getReq());
     expect(response.status).toBe(200);
-    const [tx] = await response.json();
-    expect(tx.amount).toBe(1500);
-    expect(typeof tx.amount).toBe("number");
+    const { items, nextCursor } = await response.json();
+    expect(items[0].amount).toBe(1500);
+    expect(typeof items[0].amount).toBe("number");
+    expect(nextCursor).toBeNull();
   });
 
   it("scopes the DB query to the authenticated user", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([]);
 
-    await GET();
+    await GET(getReq());
     expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: "user-1" }) })
     );
   });
 
-  it("returns an empty array when the user has no transactions", async () => {
+  it("returns an empty page when the user has no transactions", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([]);
 
-    const data = await (await GET()).json();
-    expect(data).toEqual([]);
+    const data = await (await GET(getReq())).json();
+    expect(data).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("paginates: returns `limit` items plus a nextCursor when more remain", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    // limit=2 → route fetches 3 (limit + 1) to detect a next page.
+    mockPrisma.transaction.findMany.mockResolvedValue([
+      makeTransaction({ id: "tx-1" }),
+      makeTransaction({ id: "tx-2" }),
+      makeTransaction({ id: "tx-3" }),
+    ]);
+
+    const { items, nextCursor } = await (await GET(getReq("limit=2"))).json();
+    expect(items.map((t: { id: string }) => t.id)).toEqual(["tx-1", "tx-2"]);
+    expect(nextCursor).toBe("tx-2");
+    expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 3 })
+    );
+  });
+
+  it("applies the cursor (with skip) when one is supplied", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    mockPrisma.transaction.findMany.mockResolvedValue([]);
+
+    await GET(getReq("cursor=tx-9"));
+    expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: { id: "tx-9" }, skip: 1 })
+    );
   });
 });
 
@@ -104,6 +149,14 @@ describe("POST /api/transactions", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await POST(jsonReq(url, "POST", { type: "expense", amount: 100, categoryId: "cat-1" }));
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(malformedReq(url, "POST"));
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toMatch(/json/i);
   });
 
   it("returns 400 for an invalid type value", async () => {
@@ -135,6 +188,28 @@ describe("POST /api/transactions", () => {
   it("returns 400 when categoryId is missing", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     const response = await POST(jsonReq(url, "POST", { type: "expense", amount: 100 }));
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 for an unparseable date", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(
+      jsonReq(url, "POST", { type: "expense", amount: 100, categoryId: "cat-1", date: "not-a-date" })
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/date/i);
+  });
+
+  it("returns 400 for a note over the length limit", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(
+      jsonReq(url, "POST", {
+        type: "expense",
+        amount: 100,
+        categoryId: "cat-1",
+        note: "x".repeat(501),
+      })
+    );
     expect(response.status).toBe(400);
   });
 
@@ -193,6 +268,12 @@ describe("PATCH /api/transactions/[id]", () => {
     mockGetRequiredUser.mockResolvedValue(null);
     const response = await PATCH(jsonReq(url, "PATCH", { amount: 2000 }), params);
     expect(response.status).toBe(401);
+  });
+
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await PATCH(malformedReq(url, "PATCH"), params);
+    expect(response.status).toBe(400);
   });
 
   it("returns 400 for an invalid type value", async () => {

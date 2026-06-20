@@ -1,10 +1,15 @@
-import { signIn } from "@/auth";
+import { auth, signIn } from "@/auth";
+import { redirect } from "next/navigation";
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; provider?: string }>;
 }) {
+  // Already signed in? No reason to show the login screen — go to the dashboard.
+  const session = await auth();
+  if (session?.user) redirect("/");
+
   const params = await searchParams;
   const isProviderConflict = params.error === "AccountExistsWithDifferentProvider";
 

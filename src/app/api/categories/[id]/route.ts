@@ -2,34 +2,22 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getRequiredUser } from "@/lib/session";
+import { parseJson, withErrorHandling, ConflictError } from "@/lib/http";
+import { parseWith, categoryUpdateSchema } from "@/lib/schemas";
 
-export async function PATCH(
+export const PATCH = withErrorHandling(async (
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body = await request.json();
+  const parsed = parseWith(categoryUpdateSchema, await parseJson(request));
   const data: Prisma.CategoryUpdateInput = {};
 
-  if (body.name !== undefined) {
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    if (!name) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
-    data.name = name;
-  }
-  if (body.kind !== undefined) {
-    if (body.kind !== "income" && body.kind !== "expense") {
-      return NextResponse.json(
-        { error: "kind must be 'income' or 'expense'" },
-        { status: 400 }
-      );
-    }
-    data.kind = body.kind;
-  }
+  if (parsed.name !== undefined) data.name = parsed.name;
+  if (parsed.kind !== undefined) data.kind = parsed.kind;
 
   try {
     const category = await prisma.category.update({
@@ -51,33 +39,33 @@ export async function PATCH(
     }
     throw e;
   }
-}
+});
 
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
 
-  // Count usage scoped to this user's data only.
-  const [txCount, budgetCount] = await Promise.all([
-    prisma.transaction.count({ where: { categoryId: id, userId } }),
-    prisma.budget.count({ where: { categoryId: id, userId } }),
-  ]);
-  if (txCount > 0 || budgetCount > 0) {
-    return NextResponse.json(
-      {
-        error: `Category is in use by ${txCount} transaction(s) and ${budgetCount} budget(s). Reassign or delete those first.`,
-      },
-      { status: 409 }
-    );
-  }
-
   try {
-    await prisma.category.delete({ where: { id, userId } });
+    // Count usage and delete in one transaction so a transaction/budget can't
+    // start referencing the category between the check and the delete. The FK
+    // (onDelete: Restrict) is the ultimate backstop if one slips in.
+    await prisma.$transaction(async (tx) => {
+      const [txCount, budgetCount] = await Promise.all([
+        tx.transaction.count({ where: { categoryId: id, userId } }),
+        tx.budget.count({ where: { categoryId: id, userId } }),
+      ]);
+      if (txCount > 0 || budgetCount > 0) {
+        throw new ConflictError(
+          `Category is in use by ${txCount} transaction(s) and ${budgetCount} budget(s). Reassign or delete those first.`
+        );
+      }
+      await tx.category.delete({ where: { id, userId } });
+    });
     return new NextResponse(null, { status: 204 });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
@@ -85,4 +73,4 @@ export async function DELETE(
     }
     throw e;
   }
-}
+});

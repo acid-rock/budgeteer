@@ -14,6 +14,10 @@ monthly budget workflow.
 | Database | PostgreSQL via Neon (serverless) |
 | ORM | Prisma (pooled + direct connection) |
 | Client data | TanStack Query v5 |
+| Charts | Recharts (spending donut + daily-spend bars) |
+| Validation | Zod (per-route request schemas) |
+| Rate limiting | Upstash Redis (`@upstash/ratelimit`) |
+| Tooling | ESLint (flat config) · Vitest |
 
 ## Design
 
@@ -52,6 +56,17 @@ Required variables:
 | `AUTH_GOOGLE_ID` | Google OAuth client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
 
+Optional (API rate limiting — disabled when unset):
+
+| Variable | Description |
+|---|---|
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL (from console.upstash.com) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
+
+> **Deploying with rate limiting:** the limiter runs in edge middleware, which
+> inlines env vars **at build time** — set the `UPSTASH_*` vars in your host
+> (e.g. Vercel) before building, or production will build with rate limiting off.
+
 ### 3. Dev vs. production OAuth
 
 GitHub OAuth Apps only support one redirect URI, so create **two separate apps**
@@ -82,6 +97,8 @@ npm run dev   # http://localhost:3000
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build (`prisma generate` + `next build`) |
 | `npm start` | Serve the production build |
+| `npm run lint` | Lint with ESLint |
+| `npm test` | Run the Vitest suite |
 | `npm run db:migrate` | Create and apply a new Prisma migration |
 | `npm run db:seed` | Seed starter categories for a user |
 | `npm run db:studio` | Open Prisma Studio |
@@ -92,18 +109,22 @@ npm run dev   # http://localhost:3000
 prisma/              schema, migrations, seed
 src/
   app/               routes + API
-    api/             REST endpoints (transactions, categories, budgets, reports)
+    api/             REST endpoints (transactions, categories, budgets, reports, health)
     budgets/         monthly budget limits per category
     categories/      category management
     login/           OAuth sign-in
     reports/         monthly report (income, expenses, net savings)
     settings/        user settings + provider linking + sign out
     transactions/    transaction list + add form
+    error.tsx / not-found.tsx / global-error.tsx   App Router error boundaries
+    icon.svg         app icon (favicon)
     globals.css      Sprout design system (.mint-* classes, tokens)
     layout.tsx       app shell: fonts, top bar, .mint wrapper
-    page.tsx         dashboard (server-rendered)
-  components/        shared UI: TopBar, Donut, ActivityGrid, row/form components
-  lib/               Prisma client, utils, colors (chart palette), session helpers
+    page.tsx         dashboard (server-rendered, Suspense-streamed panels)
+  components/        shared UI: TopBar, Donut, DailyBarChart, ActivityGrid, Skeletons, row/form components
+  lib/               Prisma client, utils, colors, session, dashboard-data,
+                     http (error handling), schemas (Zod), logger, rate-limit
+  middleware.ts      edge auth guard + per-IP API rate limiting
   types/             shared TypeScript interfaces
 ```
 
@@ -118,5 +139,10 @@ src/
 | Dashboard — totals, spending donut, 14-day bars, activity heatmap, recent + top spending | Done |
 | Reports — totals, donut breakdown, per-category share table | Done |
 | Sprout visual redesign + responsive layout | Done |
-| Top-bar month pill — make it actually switch the active month | TODO |
+| Top-bar month pill — switches the dashboard's active month | Done |
+| Transactions — cursor pagination ("Load more") | Done |
+| Reliability — error boundaries, safe JSON parsing, centralized error handling + logging | Done |
+| Security — Zod validation, atomic multi-step writes, security headers, per-IP API rate limiting | Done |
+| Tooling — ESLint, Vitest API suite, `/api/health` probe | Done |
 | Reports — budget-vs-actual progress bar visualization | TODO |
+| CSP — currently report-only; needs nonce wiring before enforcing | TODO |
