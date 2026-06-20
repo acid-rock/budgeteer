@@ -38,6 +38,9 @@ export default function Error({
         <button className="mint-btn pri" onClick={reset}>
           Try again
         </button>
+        {/* Intentional hard navigation: a full load guarantees the errored
+            subtree is cleared, which a soft <Link> to the same route may not. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a className="mint-btn" href="/">
           Go to dashboard
         </a>

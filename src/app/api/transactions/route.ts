@@ -5,16 +5,34 @@ import { getRequiredUser } from "@/lib/session";
 import { parseJson, withErrorHandling, NotFoundError } from "@/lib/http";
 import { parseWith, transactionCreateSchema } from "@/lib/schemas";
 
-export const GET = withErrorHandling(async () => {
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const transactions = await prisma.transaction.findMany({
+  const { searchParams } = new URL(request.url);
+  const requestedLimit = Number(searchParams.get("limit"));
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), MAX_LIMIT)
+    : DEFAULT_LIMIT;
+  const cursor = searchParams.get("cursor");
+
+  // Cursor pagination: fetch one extra row to detect whether more remain. The
+  // id tiebreaker keeps ordering stable across days that share a date.
+  const rows = await prisma.transaction.findMany({
     where: { userId },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { id: "desc" }],
     include: { category: true },
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  return NextResponse.json(transactions.map(serializeTransaction));
+
+  const hasMore = rows.length > limit;
+  const items = (hasMore ? rows.slice(0, limit) : rows).map(serializeTransaction);
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+  return NextResponse.json({ items, nextCursor });
 });
 
 export const POST = withErrorHandling(async (request: Request) => {
