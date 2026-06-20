@@ -75,6 +75,13 @@ All notable changes to Budgeteer. Format loosely follows
   the old plain "Loading…" text, so there's no layout shift when data arrives. All
   motion respects `prefers-reduced-motion`.
 
+### Fixed
+- **Login page was reachable while authenticated.** The middleware deliberately
+  excludes `/login` from its guard, so a signed-in user could still open it.
+  `/login` now calls `auth()` and redirects to the dashboard when a session
+  exists. No redirect loop: the dashboard only bounces *unauthenticated* users the
+  other way.
+
 ## [Unreleased] — 2026-06-18
 
 ### Changed
