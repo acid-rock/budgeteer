@@ -12,6 +12,7 @@ const { mockGetRequiredUser, mockPrisma } = vi.hoisted(() => ({
     },
     transaction: { count: vi.fn() },
     budget: { count: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -60,6 +61,10 @@ function malformedReq(url: string, method: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Interactive transactions run the callback with the mock client as `tx`.
+  mockPrisma.$transaction.mockImplementation(
+    (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma)
+  );
 });
 
 // ─── GET /api/categories ──────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getRequiredUser } from "@/lib/session";
 import { parseJson, withErrorHandling } from "@/lib/http";
+import { parseWith, categoryCreateSchema } from "@/lib/schemas";
 
 export const GET = withErrorHandling(async () => {
   const userId = await getRequiredUser();
@@ -19,13 +20,7 @@ export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await parseJson(request);
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const kind = body.kind === "income" ? "income" : "expense";
-
-  if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
-  }
+  const { name, kind } = parseWith(categoryCreateSchema, await parseJson(request));
 
   try {
     const category = await prisma.category.create({

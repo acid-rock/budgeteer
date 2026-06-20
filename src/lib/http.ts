@@ -12,6 +12,24 @@ export class BadRequestError extends Error {
   }
 }
 
+// Thrown when an entity is missing or not owned by the caller — e.g. a category
+// ownership check inside a $transaction. Caught by withErrorHandling → 404.
+export class NotFoundError extends Error {
+  constructor(message = "Not found") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+// Thrown for state conflicts — e.g. deleting a category still in use. Caught by
+// withErrorHandling → 409.
+export class ConflictError extends Error {
+  constructor(message = "Conflict") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 // Parse a JSON request body, throwing a BadRequestError (→ 400) on malformed
 // JSON instead of letting the raw SyntaxError bubble up to an unhandled 500.
 // Defaults to `any` so existing routes keep destructuring the body as before;
@@ -31,6 +49,14 @@ export async function parseJson<T = any>(request: Request): Promise<T> {
 export function handleApiError(error: unknown): NextResponse {
   if (error instanceof BadRequestError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (error instanceof NotFoundError) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
+  }
+
+  if (error instanceof ConflictError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {

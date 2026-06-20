@@ -11,6 +11,7 @@ const { mockGetRequiredUser, mockPrisma } = vi.hoisted(() => ({
       delete: vi.fn(),
     },
     category: { findFirst: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -64,6 +65,10 @@ function malformedReq(url: string, method: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Interactive transactions run the callback with the mock client as `tx`.
+  mockPrisma.$transaction.mockImplementation(
+    (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma)
+  );
 });
 
 // ─── GET /api/transactions ────────────────────────────────────────────────────
@@ -152,6 +157,28 @@ describe("POST /api/transactions", () => {
   it("returns 400 when categoryId is missing", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     const response = await POST(jsonReq(url, "POST", { type: "expense", amount: 100 }));
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 for an unparseable date", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(
+      jsonReq(url, "POST", { type: "expense", amount: 100, categoryId: "cat-1", date: "not-a-date" })
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/date/i);
+  });
+
+  it("returns 400 for a note over the length limit", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(
+      jsonReq(url, "POST", {
+        type: "expense",
+        amount: 100,
+        categoryId: "cat-1",
+        note: "x".repeat(501),
+      })
+    );
     expect(response.status).toBe(400);
   });
 
