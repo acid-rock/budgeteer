@@ -3,6 +3,29 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-21
+
+### Added
+- **Production hardening, Phase 3 — tooling & polish.**
+  - **ESLint.** Added a flat config (`eslint.config.mjs`) that extends
+    `eslint-config-next` v16's native flat config; `npm run lint` now runs
+    `eslint .` and passes clean. (`next lint` was removed in Next 16.)
+  - **Transaction pagination.** `GET /api/transactions` is now cursor-paginated —
+    `?limit` (default 20, max 100) + `?cursor=<id>`, returning
+    `{ items, nextCursor }` instead of the full list. `TransactionList` uses
+    `useInfiniteQuery` with a **Load more** button (same query key, so mutations
+    elsewhere still invalidate it). Ordered by `date desc, id desc` for a stable
+    cursor across same-day rows.
+  - **Health check.** New public `GET /api/health` (excluded from the auth
+    middleware) runs a `SELECT 1` — `200 { status: "ok" }` when the database is
+    reachable, `503` when not — for load-balancer / uptime probes.
+
+### Changed
+- **Pinned `next-auth`** to the exact `5.0.0-beta.31` (dropped the `^`) to avoid
+  surprise beta bumps.
+- **Extracted the daily-spending "heavy spend" threshold** (₱300) and the two bar
+  colors to named constants in `DailyBarChart.tsx`.
+
 ## [Unreleased] — 2026-06-20
 
 ### Added

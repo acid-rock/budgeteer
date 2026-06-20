@@ -8,8 +8,14 @@ interface Point {
   amount: number;
 }
 
+// Daily-spend bars above this peso amount are drawn in the darker "heavy" green
+// to flag higher-spend days at a glance.
+const HEAVY_SPEND_THRESHOLD = 300;
+const BAR_COLOR = "#7FCE3E";
+const BAR_COLOR_HEAVY = "#0E5A3C";
+
 // 14-day expense bars, built on Recharts so hovering a bar shows a real
-// tooltip ("<date>: <amount>"). Days over ₱300 get the darker green.
+// tooltip ("<date>: <amount>").
 export function DailyBarChart({ data }: { data: Point[] }) {
   return (
     <ResponsiveContainer width="100%" height={140}>
@@ -28,7 +34,10 @@ export function DailyBarChart({ data }: { data: Point[] }) {
         />
         <Bar dataKey="amount" radius={[6, 6, 3, 3]} maxBarSize={22}>
           {data.map((d, i) => (
-            <Cell key={i} fill={d.amount > 300 ? "#0E5A3C" : "#7FCE3E"} />
+            <Cell
+              key={i}
+              fill={d.amount > HEAVY_SPEND_THRESHOLD ? BAR_COLOR_HEAVY : BAR_COLOR}
+            />
           ))}
         </Bar>
       </BarChart>

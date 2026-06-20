@@ -54,8 +54,9 @@ export const config = {
   //  - Next.js internals (_next/*)
   //  - The login page itself
   //  - Auth.js callback routes (api/auth/*)
+  //  - The public health probe (api/health)
   //  - favicon / app icon (static metadata)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|login|api/auth).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|login|api/auth|api/health).*)",
   ],
 };

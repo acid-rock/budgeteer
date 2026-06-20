@@ -74,38 +74,69 @@ beforeEach(() => {
 // ─── GET /api/transactions ────────────────────────────────────────────────────
 
 describe("GET /api/transactions", () => {
+  const getReq = (qs = "") =>
+    new Request(`http://localhost/api/transactions${qs ? `?${qs}` : ""}`);
+
   it("returns 401 when not authenticated", async () => {
     mockGetRequiredUser.mockResolvedValue(null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(getReq())).status).toBe(401);
   });
 
-  it("returns the user's transactions with amounts serialized to plain numbers", async () => {
+  it("returns a page of transactions with amounts serialized to plain numbers", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([makeTransaction()]);
 
-    const response = await GET();
+    const response = await GET(getReq());
     expect(response.status).toBe(200);
-    const [tx] = await response.json();
-    expect(tx.amount).toBe(1500);
-    expect(typeof tx.amount).toBe("number");
+    const { items, nextCursor } = await response.json();
+    expect(items[0].amount).toBe(1500);
+    expect(typeof items[0].amount).toBe("number");
+    expect(nextCursor).toBeNull();
   });
 
   it("scopes the DB query to the authenticated user", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([]);
 
-    await GET();
+    await GET(getReq());
     expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: "user-1" }) })
     );
   });
 
-  it("returns an empty array when the user has no transactions", async () => {
+  it("returns an empty page when the user has no transactions", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
     mockPrisma.transaction.findMany.mockResolvedValue([]);
 
-    const data = await (await GET()).json();
-    expect(data).toEqual([]);
+    const data = await (await GET(getReq())).json();
+    expect(data).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("paginates: returns `limit` items plus a nextCursor when more remain", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    // limit=2 → route fetches 3 (limit + 1) to detect a next page.
+    mockPrisma.transaction.findMany.mockResolvedValue([
+      makeTransaction({ id: "tx-1" }),
+      makeTransaction({ id: "tx-2" }),
+      makeTransaction({ id: "tx-3" }),
+    ]);
+
+    const { items, nextCursor } = await (await GET(getReq("limit=2"))).json();
+    expect(items.map((t: { id: string }) => t.id)).toEqual(["tx-1", "tx-2"]);
+    expect(nextCursor).toBe("tx-2");
+    expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 3 })
+    );
+  });
+
+  it("applies the cursor (with skip) when one is supplied", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    mockPrisma.transaction.findMany.mockResolvedValue([]);
+
+    await GET(getReq("cursor=tx-9"));
+    expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: { id: "tx-9" }, skip: 1 })
+    );
   });
 });
 
