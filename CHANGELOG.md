@@ -3,6 +3,37 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-20
+
+### Changed
+- **Dashboard performance — Suspense streaming + DB-side aggregation.** The
+  dashboard was the only route that blocked on *all* its DB queries before
+  painting, so navigating to it from another page felt slow. Each panel (stats,
+  spending donut, daily spending, activity, recent activity, top spending) now
+  streams in independently behind its own `<Suspense>` boundary with a loading
+  skeleton, so the header and shell appear instantly. Data fetching moved to
+  `src/lib/dashboard-data.ts`, wrapped in React `cache()` so panels that share a
+  query (e.g. donut + top-spending) hit the DB once. Per-day activity and
+  daily-spending series are now aggregated in Postgres (`groupBy` with
+  `_count` / `_sum`) instead of pulling one row per transaction and counting in JS.
+- **Charts moved to Recharts.** The hand-rolled donut and daily-spending bars were
+  replaced with [Recharts](https://recharts.org) — `src/components/Donut.tsx`
+  (rewritten) and the new `src/components/DailyBarChart.tsx`. The donut keeps the
+  exact same prop API, so its call sites (Dashboard, Reports) didn't change. The
+  daily-spending bars show a themed hover tooltip (`<date>: <amount>`). The
+  activity heatmap was intentionally left as a custom component.
+- **Activity heatmap hover tooltip.** Hovering a day cell now shows a styled
+  tooltip (`<date>: <count> transactions`) that matches the chart theme, replacing
+  the plain browser `title`. `ActivityGrid` became a client component to track
+  hover state; the tooltip is anchored to a non-scrolling wrapper around the grid
+  so it isn't clipped by the heatmap's horizontal scroll on phones.
+- **Entrance animations + loading skeletons across the app.** Charts and panels
+  fade/scale in on load, and progress bars grow in. The client-fetched pages
+  (Budgets, Reports, Categories, Transactions) now show shimmer skeletons that
+  mirror each page's real layout — new `src/components/Skeletons.tsx` — instead of
+  the old plain "Loading…" text, so there's no layout shift when data arrives. All
+  motion respects `prefers-reduced-motion`.
+
 ## [Unreleased] — 2026-06-18
 
 ### Changed

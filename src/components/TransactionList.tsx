@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Transaction } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TransactionRow } from "./TransactionRow";
+import { TransactionsSkeleton } from "./Skeletons";
 
 async function fetchTransactions(): Promise<Transaction[]> {
   const res = await fetch("/api/transactions");
@@ -18,7 +19,7 @@ export function TransactionList() {
   });
 
   if (isLoading) {
-    return <p className="mint-muted">Loading transactions…</p>;
+    return <TransactionsSkeleton />;
   }
   if (isError) {
     return <p className="mint-err">{(error as Error).message}</p>;
