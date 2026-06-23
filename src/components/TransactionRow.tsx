@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { colorForCategory } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 
 async function fetchCategories(): Promise<Category[]> {
   const res = await fetch("/api/categories");
@@ -192,8 +193,8 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
       onClick={startEditing}
       title="Edit transaction"
     >
-      <div className="mint-ic">
-        <div className="g" style={{ background: color }} />
+      <div className="mint-ic" style={{ color }}>
+        <CategoryIcon name={categoryName} kind={transaction.type} size={18} />
       </div>
       <div style={{ minWidth: 0 }}>
         <div

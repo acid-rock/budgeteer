@@ -11,6 +11,7 @@ import {
   APP_TIME_ZONE,
 } from "@/lib/utils";
 import { CHART_PALETTE, colorForCategory } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 import { ActivityGrid } from "@/components/ActivityGrid";
 import { Donut } from "@/components/Donut";
 import { DailyBarChart } from "@/components/DailyBarChart";
@@ -411,11 +412,11 @@ async function RecentActivitySection({ userId }: { userId: string }) {
     <div className="mint-act mint-fadein">
       {recentTransactions.map((t) => (
         <div key={t.id} className="mint-row">
-          <div className="mint-ic">
-            <div
-              className="g"
-              style={{ background: colorForCategory(t.category?.name ?? "—") }}
-            />
+          <div
+            className="mint-ic"
+            style={{ color: colorForCategory(t.category?.name ?? "—") }}
+          >
+            <CategoryIcon name={t.category?.name ?? "—"} kind={t.type} size={18} />
           </div>
           <div>
             <div className="nm">{t.category?.name ?? "—"}</div>
