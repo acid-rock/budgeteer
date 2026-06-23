@@ -345,6 +345,13 @@ body {
   border-radius: 50%;
   display: inline-block;
 }
+/* Inline category icon (Reports/Budgets rows) — inherits its color from the
+   `color` style, sized to sit on the row baseline without adding height. */
+.mint-cicon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+}
 .mint-pill {
   font-size: 11.5px;
   font-weight: 700;
@@ -478,10 +485,8 @@ body {
   justify-content: center;
   flex: 0 0 auto;
 }
-.mint-ic .g {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+.mint-ic svg {
+  display: block;
 }
 .mint-row .nm {
   font-weight: 600;
@@ -842,11 +847,8 @@ body {
   justify-content: center;
   flex: 0 0 auto;
 }
-.mint-catcard .sw .g {
-  width: 16px;
-  height: 16px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.92);
+.mint-catcard .sw svg {
+  display: block;
 }
 .mint-catcard .nm {
   font-weight: 700;
