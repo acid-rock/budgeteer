@@ -6,6 +6,7 @@ import type { Category, CategoryKind } from "@/types";
 import type { CategoryStat } from "@/app/api/categories/stats/route";
 import { formatCurrency } from "@/lib/utils";
 import { colorForCategory } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 
 async function updateCategory(
   id: string,
@@ -134,8 +135,8 @@ export function CategoryCard({
       title="Edit category"
     >
       <div className="hd">
-        <div className="sw" style={{ background: color }}>
-          <div className="g" />
+        <div className="sw" style={{ background: color, color: "#fff" }}>
+          <CategoryIcon name={category.name} kind={category.kind} size={22} />
         </div>
         <div>
           <div className="nm">{category.name}</div>
