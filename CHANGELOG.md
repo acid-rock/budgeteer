@@ -3,6 +3,18 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-25
+
+### Changed
+- **Reports: budget-vs-actual progress.** The "By category" table's old "Share"
+  column (each category's spend as a fraction of the largest) is now a **"Budget
+  used"** bar showing **spent ÷ budget limit** with the percent used beside it.
+  The fill tracks the category's color until it goes over budget, where the bar
+  and percentage turn red (`var(--neg)`); categories without a limit set show
+  "No budget" instead. This makes the table answer "am I within budget?" at a
+  glance rather than just comparing categories to each other. (`mint-budgetbar`
+  in `src/app/globals.css`, replacing `mint-cell-bar`.)
+
 ## [Unreleased] — 2026-06-24
 
 ### Added
