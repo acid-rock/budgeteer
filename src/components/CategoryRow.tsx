@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { Category, CategoryKind } from "@/types";
 import type { CategoryStat } from "@/app/api/categories/stats/route";
 import { formatCurrency } from "@/lib/utils";
-import { colorForCategory } from "@/lib/colors";
+import { colorForCategory, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 
 async function updateCategory(
@@ -135,7 +135,7 @@ export function CategoryCard({
       title="Edit category"
     >
       <div className="hd">
-        <div className="sw" style={{ background: color, color: "#fff" }}>
+        <div className="sw" style={categoryTile(color, category.kind)}>
           <CategoryIcon name={category.name} kind={category.kind} size={22} />
         </div>
         <div>

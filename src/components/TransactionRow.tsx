@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { colorForCategory } from "@/lib/colors";
+import { colorForCategory, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 
 async function fetchCategories(): Promise<Category[]> {
@@ -193,8 +193,8 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
       onClick={startEditing}
       title="Edit transaction"
     >
-      <div className="mint-ic" style={{ color }}>
-        <CategoryIcon name={categoryName} kind={transaction.type} size={18} />
+      <div className="mint-ic" style={categoryTile(color, transaction.type)}>
+        <CategoryIcon name={categoryName} kind={transaction.type} size={19} />
       </div>
       <div style={{ minWidth: 0 }}>
         <div
