@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Budget, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { colorForCategory } from "@/lib/colors";
+import { colorForCategory, categoryTile } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 
 interface BudgetWithCategory extends Budget {
   category?: Category;
@@ -90,7 +91,9 @@ export function BudgetRow({
     return (
       <div className="mint-brow">
         <div className="top">
-          <span className="mint-dot" style={{ background: color }} />
+          <span className="mint-cchip" style={categoryTile(color, category.kind)}>
+          <CategoryIcon name={category.name} kind={category.kind} size={22} />
+        </span>
           <span className="nm">{category.name}</span>
           <div
             style={{
@@ -151,7 +154,9 @@ export function BudgetRow({
   return (
     <div className="mint-brow">
       <div className="top">
-        <span className="mint-dot" style={{ background: color }} />
+        <span className="mint-cchip" style={categoryTile(color, category.kind)}>
+          <CategoryIcon name={category.name} kind={category.kind} size={22} />
+        </span>
         <span className="nm">{category.name}</span>
         <span className="nums">
           {hasBudget ? (

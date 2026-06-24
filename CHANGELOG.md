@@ -3,6 +3,21 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-24
+
+### Added
+- **Category icons.** Every category now shows a line icon on a colored tile,
+  consistent across the Categories grid, transaction rows, the dashboard's recent
+  activity, Budgets, and Reports (replacing the plain colored dots/squares). A
+  curated 24×24 / 1.7-stroke icon set (`src/lib/category-icon.tsx`, ported from
+  the "Sprout" design) is matched to a category by name keyword — e.g. Groceries →
+  cart, Dining → utensils, Transport → bus, Rent → house, Salary → banknote,
+  Investments → trending-up — with a kind-based fallback so custom categories
+  still get a sensible icon. Tiles follow the design: expense categories use a
+  soft 16% tint of their color with a dark-green icon, income categories a solid
+  positive-green tile with a white icon (`categoryTile()` in `src/lib/colors.ts`).
+  Icons are inline SVG, so there's no new runtime dependency.
+
 ## [Unreleased] — 2026-06-21
 
 ### Added

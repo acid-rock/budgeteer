@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
-import { CHART_PALETTE } from "@/lib/colors";
+import { CHART_PALETTE, categoryTile } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 import { Donut } from "@/components/Donut";
 import { ReportSkeleton } from "@/components/Skeletons";
 import type { MonthlyReport } from "@/types";
@@ -109,9 +110,18 @@ export default function ReportsPage() {
                       <td>
                         <div className="nm">
                           <span
-                            className="mint-dot"
-                            style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }}
-                          />
+                            className="mint-cchip"
+                            style={categoryTile(
+                              CHART_PALETTE[i % CHART_PALETTE.length],
+                              "expense"
+                            )}
+                          >
+                            <CategoryIcon
+                              name={c.categoryName}
+                              kind="expense"
+                              size={22}
+                            />
+                          </span>
                           {c.categoryName}
                         </div>
                       </td>
