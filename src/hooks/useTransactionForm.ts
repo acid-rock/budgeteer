@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
-import { todayDateString } from "@/lib/utils";
+import { byKind, todayDateString } from "@/lib/utils";
 import {
   createTransaction,
   prependTransaction,
@@ -61,7 +61,7 @@ export function useTransactionForm({ onSuccess }: Options = {}) {
 
   // Income and expense have distinct category sets (Category.kind), so only
   // show the ones matching the selected type.
-  const visibleCategories = categories?.filter((c) => c.kind === type) ?? [];
+  const visibleCategories = byKind(categories, type);
 
   // Once categories load (and whenever the kind changes), default to the
   // remembered category for that kind — but never clobber an explicit pick.

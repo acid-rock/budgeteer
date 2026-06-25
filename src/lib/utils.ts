@@ -1,4 +1,7 @@
-// Shared formatting + date helpers. Keep these pure and dependency-free.
+// Shared formatting + date helpers. Keep these pure and dependency-free
+// (the only import is a type, which is erased at build time).
+
+import type { CategoryKind } from "@/types";
 
 // Single-user app based in the Philippines. "Current" dates (this month, today)
 // are computed in this zone so they match the user's wall clock regardless of
@@ -14,6 +17,8 @@ function partsInAppZone(date: Date): { y: string; m: string; d: string } {
     month: "2-digit",
     day: "2-digit",
   }).formatToParts(date);
+  // The non-null assertion is safe: formatToParts always emits a part for every
+  // field requested above, so find() never returns undefined for year/month/day.
   const get = (type: string) => parts.find((p) => p.type === type)!.value;
   return { y: get("year"), m: get("month"), d: get("day") };
 }
@@ -73,4 +78,14 @@ export function priorMonthsRange(
   const end = new Date(Date.UTC(year, m - 1, 1));
   const start = new Date(Date.UTC(year, m - 1 - n, 1));
   return { start, end };
+}
+
+// Income / expense / savings categories are filtered by `kind` all over the app
+// (transaction forms, budgets, …). Returns [] for an undefined list, matching the
+// call sites' previous `?? []`.
+export function byKind<T extends { kind: CategoryKind }>(
+  categories: T[] | undefined,
+  kind: CategoryKind
+): T[] {
+  return categories?.filter((c) => c.kind === kind) ?? [];
 }

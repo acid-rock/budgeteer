@@ -3,6 +3,22 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-26
+
+### Changed
+- **Stricter category creation.** `POST /api/categories` now returns a clear 400
+  for an invalid or missing `kind` instead of silently coercing it to "expense"
+  — making create consistent with the already-strict update schema. (Dropped the
+  `.catch("expense")` on `categoryCreateSchema.kind` in `src/lib/schemas.ts`.)
+
+### Internal
+- **`byKind` filter helper.** Extracted the repeated
+  `categories.filter(c => c.kind === …)` into `byKind(categories, kind)` in
+  `src/lib/utils.ts`, now used by the transaction forms (quick-add + inline edit)
+  and the budgets page. Behavior unchanged.
+- Documented why the non-null assertion in `partsInAppZone` (`src/lib/utils.ts`)
+  is safe — `Intl.…formatToParts` always emits a part for every requested field.
+
 ## [Unreleased] — 2026-06-25
 
 ### Added
