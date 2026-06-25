@@ -173,14 +173,19 @@ describe("POST /api/categories", () => {
     );
   });
 
-  it("defaults kind to 'expense' when an unrecognised kind is supplied", async () => {
+  it("returns 400 when an unrecognised kind is supplied", async () => {
     mockGetRequiredUser.mockResolvedValue("user-1");
-    mockPrisma.category.create.mockResolvedValue(makeCategory());
+    const response = await POST(jsonReq("http://localhost/api/categories", "POST", { name: "Test", kind: "other" }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/kind/i);
+    expect(mockPrisma.category.create).not.toHaveBeenCalled();
+  });
 
-    await POST(jsonReq("http://localhost/api/categories", "POST", { name: "Test", kind: "other" }));
-    expect(mockPrisma.category.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: "expense" }) })
-    );
+  it("returns 400 when kind is absent from the body", async () => {
+    mockGetRequiredUser.mockResolvedValue("user-1");
+    const response = await POST(jsonReq("http://localhost/api/categories", "POST", { name: "Test" }));
+    expect(response.status).toBe(400);
+    expect(mockPrisma.category.create).not.toHaveBeenCalled();
   });
 
   it("trims whitespace from name before saving", async () => {
