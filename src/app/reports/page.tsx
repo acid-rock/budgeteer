@@ -36,12 +36,19 @@ export default function ReportsPage() {
           <h1>Monthly report</h1>
           <p>Income, expenses, and category breakdown.</p>
         </div>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="mint-input"
-        />
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {/* A real download link to an API route (served with Content-Disposition),
+              not a page navigation — next/link is for client-side page transitions. */}
+          <a className="mint-btn" href="/api/transactions/export" download>
+            Export CSV
+          </a>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="mint-input"
+          />
+        </div>
       </div>
 
       {isLoading || !data ? (

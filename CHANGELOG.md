@@ -25,6 +25,12 @@ All notable changes to Budgeteer. Format loosely follows
   - **Auth middleware** now treats the manifest, service worker, offline shell,
     and icon PNGs as public (like `favicon.ico`/`icon.svg`) so they're fetchable
     without a session; all other routes stay guarded.
+- **CSV export.** New `GET /api/transactions/export` streams the authenticated
+  user's full ledger as a downloadable CSV — RFC 4180 quoting, a UTF-8 BOM so
+  Excel renders peso signs / unicode notes, and savings transfers excluded (same
+  as the ledger API). An **Export CSV** button sits in the Reports page header.
+  Shared CSV helpers live in `src/lib/csv.ts` (unit-tested) so the upcoming
+  import flow can reuse the column format.
 
 ## [Unreleased] — 2026-06-25
 
