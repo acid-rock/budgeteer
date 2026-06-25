@@ -5,19 +5,26 @@ All notable changes to Budgeteer. Format loosely follows
 
 ## [Unreleased] — 2026-06-26
 
-### Changed
-- **Stricter category creation.** `POST /api/categories` now returns a clear 400
-  for an invalid or missing `kind` instead of silently coercing it to "expense"
-  — making create consistent with the already-strict update schema. (Dropped the
-  `.catch("expense")` on `categoryCreateSchema.kind` in `src/lib/schemas.ts`.)
-
-### Internal
-- **`byKind` filter helper.** Extracted the repeated
-  `categories.filter(c => c.kind === …)` into `byKind(categories, kind)` in
-  `src/lib/utils.ts`, now used by the transaction forms (quick-add + inline edit)
-  and the budgets page. Behavior unchanged.
-- Documented why the non-null assertion in `partsInAppZone` (`src/lib/utils.ts`)
-  is safe — `Intl.…formatToParts` always emits a part for every requested field.
+### Added
+- **Installable PWA.** Budgeteer can now be installed to a phone home screen and
+  launched standalone.
+  - **Manifest.** New `src/app/manifest.ts` (served at `/manifest.webmanifest`)
+    with name, standalone display, Sprout theme/background colors, and a
+    "Quick add" launch shortcut that deep-links to `/?quickadd=1`. The QuickAdd
+    component opens its sheet when that param is present (then strips it).
+  - **Icons.** Generated home-screen PNGs (192/512 + a maskable 512 + an Apple
+    touch icon) from the green-tile / lime-"B" brand mark via a committed
+    `scripts/generate-pwa-icons.mjs` (sharp; the "B" is drawn as vector paths so
+    rasterization doesn't depend on a system font). Wired the manifest link,
+    `theme-color`, and `apple-touch-icon` into `src/app/layout.tsx`.
+  - **Service worker + offline shell.** `public/sw.js` (registered in production
+    via `ServiceWorkerRegister`) gives installability and serves a cached
+    `public/offline.html` when a navigation fails offline. It caches only static
+    build assets + icons — never API responses or HTML — so no per-user data is
+    stored on the device.
+  - **Auth middleware** now treats the manifest, service worker, offline shell,
+    and icon PNGs as public (like `favicon.ico`/`icon.svg`) so they're fetchable
+    without a session; all other routes stay guarded.
 
 ## [Unreleased] — 2026-06-25
 
