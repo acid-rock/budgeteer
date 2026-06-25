@@ -22,6 +22,12 @@ All notable changes to Budgeteer. Format loosely follows
     full reload — from any page.
   - **Mobile-aware.** The button respects `env(safe-area-inset-*)` so it clears a
     phone's home indicator / browser bottom bar.
+- **Continuous integration (GitHub Actions).** New `.github/workflows/ci.yml` runs
+  on pushes to `main`/`dev` and on every pull request: `npm ci` → `npm run lint` →
+  `npm test` → `npm run build` on Node 20. The build step gets placeholder
+  `DATABASE_URL`/`DIRECT_URL`/`AUTH_*` env so `prisma generate` and `next build`
+  resolve their references (no real secrets; Upstash left unset so rate limiting
+  self-disables). In-progress runs on the same ref are cancelled when superseded.
 - **Auto-budget.** Budgets can now be suggested from past spend instead of typed
   in from scratch. A new **Auto-budget** button (Budgets header, next to the month
   picker) opens a preview panel listing every expense category with a suggested
@@ -64,6 +70,14 @@ All notable changes to Budgeteer. Format loosely follows
   - **UI.** Total-saved / goals stats, a bucket-card grid, a deposit/withdraw
     form, and an infinite-scroll movement history — all on the Sprout design
     system, with a piggy-bank icon and a distinct lime tile for savings.
+
+### Fixed
+- **Stale `categories` API tests.** The `makeCategory` test factory predated the
+  savings migration's nullable `Category.target` column, so its objects lacked
+  `target` while the API serializes every category through `serializeCategory`
+  (which always emits `target: null` for income/expense). Two full-object
+  assertions failed as a result; the factory now models the real row shape. (This
+  unblocked the CI suite — it was red on the base branch.)
 
 ## [Unreleased] — 2026-06-24
 
