@@ -39,7 +39,10 @@ function prismaUniqueConflict() {
 }
 
 function makeCategory(overrides = {}) {
-  return { id: "cat-1", name: "Groceries", kind: "expense", userId: "user-1", ...overrides };
+  // Mirrors a real Category row, including the nullable `target` column added in
+  // the savings migration — the API serializes every category through
+  // serializeCategory, which always emits `target` (null for income/expense).
+  return { id: "cat-1", name: "Groceries", kind: "expense", userId: "user-1", target: null, ...overrides };
 }
 
 function jsonReq(url: string, method: string, body: unknown) {
