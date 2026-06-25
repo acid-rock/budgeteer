@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { serializeTransaction } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
-import { parseJson, withErrorHandling, NotFoundError } from "@/lib/http";
-import { parseWith, transactionCreateSchema } from "@/lib/schemas";
+import {
+  parseJson,
+  withErrorHandling,
+  NotFoundError,
+  BadRequestError,
+} from "@/lib/http";
+import { parseWith, savingsMovementCreateSchema } from "@/lib/schemas";
+import { formatCurrency } from "@/lib/utils";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
+// Cursor-paginated movement history, filtered to deposits/withdrawals so it can
+// never surface ledger transactions. Mirrors GET /api/transactions; an optional
+// ?categoryId scopes the list to one bucket.
 export const GET = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,12 +27,14 @@ export const GET = withErrorHandling(async (request: Request) => {
     ? Math.min(Math.max(Math.trunc(requestedLimit), 1), MAX_LIMIT)
     : DEFAULT_LIMIT;
   const cursor = searchParams.get("cursor");
+  const categoryId = searchParams.get("categoryId");
 
-  // Cursor pagination: fetch one extra row to detect whether more remain. The
-  // id tiebreaker keeps ordering stable across days that share a date. Savings
-  // movements (deposit/withdraw) are transfers, not ledger entries — exclude them.
   const rows = await prisma.transaction.findMany({
-    where: { userId, type: { in: ["income", "expense"] } },
+    where: {
+      userId,
+      type: { in: ["deposit", "withdraw"] },
+      ...(categoryId ? { categoryId } : {}),
+    },
     orderBy: [{ date: "desc" }, { id: "desc" }],
     include: { category: true },
     take: limit + 1,
@@ -41,17 +52,34 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { type, amount, date, categoryId, note } = parseWith(
-    transactionCreateSchema,
+    savingsMovementCreateSchema,
     await parseJson(request)
   );
 
-  // Verify category ownership and create in one transaction so the category
-  // can't be deleted out from under us between the check and the insert.
-  const transaction = await prisma.$transaction(async (tx) => {
-    const category = await tx.category.findFirst({
-      where: { id: categoryId, userId },
+  // Verify the bucket is owned AND is a savings bucket, and (for withdrawals)
+  // that there's enough balance — all in one transaction so the balance can't
+  // shift between the check and the insert.
+  const movement = await prisma.$transaction(async (tx) => {
+    const bucket = await tx.category.findFirst({
+      where: { id: categoryId, userId, kind: "savings" },
     });
-    if (!category) throw new NotFoundError("Category not found");
+    if (!bucket) throw new NotFoundError("Savings bucket not found");
+
+    if (type === "withdraw") {
+      const sums = await tx.transaction.groupBy({
+        by: ["type"],
+        where: { userId, categoryId, type: { in: ["deposit", "withdraw"] } },
+        _sum: { amount: true },
+      });
+      const sumFor = (t: string) =>
+        Number(sums.find((s) => s.type === t)?._sum.amount ?? 0);
+      const balance = sumFor("deposit") - sumFor("withdraw");
+      if (amount > balance) {
+        throw new BadRequestError(
+          `Cannot withdraw more than the bucket balance (${formatCurrency(balance)})`
+        );
+      }
+    }
 
     return tx.transaction.create({
       data: {
@@ -65,5 +93,5 @@ export const POST = withErrorHandling(async (request: Request) => {
       include: { category: true },
     });
   });
-  return NextResponse.json(serializeTransaction(transaction), { status: 201 });
+  return NextResponse.json(serializeTransaction(movement), { status: 201 });
 });

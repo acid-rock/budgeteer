@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { serializeCategory } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
 import { parseJson, withErrorHandling } from "@/lib/http";
 import { parseWith, categoryCreateSchema } from "@/lib/schemas";
@@ -13,20 +14,24 @@ export const GET = withErrorHandling(async () => {
     where: { userId },
     orderBy: [{ kind: "asc" }, { name: "asc" }],
   });
-  return NextResponse.json(categories);
+  return NextResponse.json(categories.map(serializeCategory));
 });
 
 export const POST = withErrorHandling(async (request: Request) => {
   const userId = await getRequiredUser();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name, kind } = parseWith(categoryCreateSchema, await parseJson(request));
+  const { name, kind, target } = parseWith(
+    categoryCreateSchema,
+    await parseJson(request)
+  );
 
   try {
     const category = await prisma.category.create({
-      data: { name, kind, userId },
+      // target only applies to savings buckets; null for income/expense.
+      data: { name, kind, target: kind === "savings" ? target ?? null : null, userId },
     });
-    return NextResponse.json(category, { status: 201 });
+    return NextResponse.json(serializeCategory(category), { status: 201 });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return NextResponse.json(

@@ -11,3 +11,9 @@ export function serializeTransaction<T extends { amount: unknown }>(t: T) {
 export function serializeBudget<T extends { limit: unknown }>(b: T) {
   return { ...b, limit: Number(b.limit) };
 }
+
+// Categories carry an optional `target` Decimal (savings goal). Convert it to a
+// plain number or null so the JSON wire format stays number-based like the rest.
+export function serializeCategory<T extends { target: unknown }>(c: T) {
+  return { ...c, target: c.target == null ? null : Number(c.target) };
+}

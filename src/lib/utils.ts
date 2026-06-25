@@ -60,3 +60,17 @@ export function monthRange(month: string): { start: Date; end: Date } {
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   return { start, end };
 }
+
+// The `n` whole calendar months immediately before `month` (e.g. for a rolling
+// average): `end` is the first day of `month` (UTC, exclusive), `start` is the
+// first day `n` months earlier (UTC, inclusive). For "2026-05", n=3 →
+// [2026-02-01, 2026-05-01). Uses the same UTC anchoring as monthStringToDate.
+export function priorMonthsRange(
+  month: string,
+  n: number
+): { start: Date; end: Date } {
+  const [year, m] = month.split("-").map(Number);
+  const end = new Date(Date.UTC(year, m - 1, 1));
+  const start = new Date(Date.UTC(year, m - 1 - n, 1));
+  return { start, end };
+}
