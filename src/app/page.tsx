@@ -10,7 +10,7 @@ import {
   todayDateString,
   APP_TIME_ZONE,
 } from "@/lib/utils";
-import { CHART_PALETTE, colorForCategory } from "@/lib/colors";
+import { CHART_PALETTE, colorForCategory, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 import { ActivityGrid } from "@/components/ActivityGrid";
 import { Donut } from "@/components/Donut";
@@ -410,16 +410,16 @@ async function RecentActivitySection({ userId }: { userId: string }) {
   }
   return (
     <div className="mint-act mint-fadein">
-      {recentTransactions.map((t) => (
+      {recentTransactions.map((t) => {
+        const name = t.category?.name ?? "—";
+        const color = colorForCategory(name);
+        return (
         <div key={t.id} className="mint-row">
-          <div
-            className="mint-ic"
-            style={{ color: colorForCategory(t.category?.name ?? "—") }}
-          >
-            <CategoryIcon name={t.category?.name ?? "—"} kind={t.type} size={18} />
+          <div className="mint-ic" style={categoryTile(color, t.type)}>
+            <CategoryIcon name={name} kind={t.type} size={19} />
           </div>
           <div>
-            <div className="nm">{t.category?.name ?? "—"}</div>
+            <div className="nm">{name}</div>
             <div className="mt">
               {formatDate(t.date)}
               {t.note ? ` · ${t.note}` : ""}
@@ -430,7 +430,8 @@ async function RecentActivitySection({ userId }: { userId: string }) {
             {formatCurrency(Number(t.amount))}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -122,8 +122,9 @@ src/
     layout.tsx       app shell: fonts, top bar, .mint wrapper
     page.tsx         dashboard (server-rendered, Suspense-streamed panels)
   components/        shared UI: TopBar, Donut, DailyBarChart, ActivityGrid, Skeletons, row/form components
-  lib/               Prisma client, utils, colors, session, dashboard-data,
-                     http (error handling), schemas (Zod), logger, rate-limit
+  lib/               Prisma client, utils, colors, category-icon, session,
+                     dashboard-data, http (error handling), schemas (Zod),
+                     logger, rate-limit
   middleware.ts      edge auth guard + per-IP API rate limiting
   types/             shared TypeScript interfaces
 ```
@@ -139,6 +140,7 @@ src/
 | Dashboard — totals, spending donut, 14-day bars, activity heatmap, recent + top spending | Done |
 | Reports — totals, donut breakdown, per-category share table | Done |
 | Sprout visual redesign + responsive layout | Done |
+| Category icons — per-category line icons on tinted tiles, app-wide | Done |
 | Top-bar month pill — switches the dashboard's active month | Done |
 | Transactions — cursor pagination ("Load more") | Done |
 | Reliability — error boundaries, safe JSON parsing, centralized error handling + logging | Done |

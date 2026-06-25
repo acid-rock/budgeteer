@@ -75,8 +75,11 @@ model VerificationToken {
 model Category {
   id           String        @id @default(cuid())
   name         String
-  // "income" categories never get budgets; kept simple as a plain string flag.
-  kind         String        @default("expense") // "income" | "expense"
+  // "income"/"expense" feed the ledger; "savings" buckets are transfer pots,
+  // excluded from every income/expense sum. Kept simple as a plain string flag.
+  kind         String        @default("expense") // "income" | "expense" | "savings"
+  // Optional savings goal; only meaningful when kind == "savings". Null = no goal.
+  target       Decimal?      @db.Decimal(12, 2)
   transactions Transaction[]
   budgets      Budget[]
   createdAt    DateTime      @default(now())
@@ -84,15 +87,17 @@ model Category {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Each user gets their own taxonomy: same name can exist across users.
+  // Each user gets their own taxonomy: same name can exist across users and
+  // across kinds (a savings bucket may share a name with an income/expense cat).
   @@unique([userId, name, kind])
   @@index([userId])
 }
 
-// A single money movement: income or expense.
+// A single money movement. "income"/"expense" hit the ledger; "deposit"/"withdraw"
+// are savings transfers against a kind=="savings" category (ignored by ledger sums).
 model Transaction {
   id         String   @id @default(cuid())
-  type       String // "income" | "expense"
+  type       String // "income" | "expense" | "deposit" | "withdraw"
   amount     Decimal  @db.Decimal(12, 2) // positive; `type` gives the direction
   date       DateTime @default(now())
   note       String?

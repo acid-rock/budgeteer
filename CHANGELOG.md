@@ -3,6 +3,97 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-25
+
+### Added
+- **App-wide Quick-Add.** A floating `+` button (bottom-right, on every
+  authenticated page) opens a compact modal to log an expense or income from
+  anywhere — date defaults to today, the last-used category is remembered per
+  kind (localStorage), and the new row appears optimistically before the round
+  trip.
+  - **Shared create logic, no duplication.** The create flow was extracted into a
+    headless `useTransactionForm` hook (`src/hooks/useTransactionForm.ts`) used by
+    both the new `QuickAdd` modal and the existing inline `TransactionForm`; the
+    optimistic insert is a pure `prependTransaction` helper in
+    `src/lib/transactions.ts` (unit-tested).
+  - **Cross-view freshness.** A successful add invalidates `["transactions"]`,
+    `["report"]`, `["category-stats"]`, and `["budgets"]`, and calls
+    `router.refresh()` so the server-rendered dashboard totals update without a
+    full reload — from any page.
+  - **Mobile-aware.** The button respects `env(safe-area-inset-*)` so it clears a
+    phone's home indicator / browser bottom bar.
+- **Continuous integration (GitHub Actions).** New `.github/workflows/ci.yml` runs
+  on pushes to `main`/`dev` and on every pull request: `npm ci` → `npm run lint` →
+  `npm test` → `npm run build` on Node 20. The build step gets placeholder
+  `DATABASE_URL`/`DIRECT_URL`/`AUTH_*` env so `prisma generate` and `next build`
+  resolve their references (no real secrets; Upstash left unset so rate limiting
+  self-disables). In-progress runs on the same ref are cancelled when superseded.
+- **Auto-budget.** Budgets can now be suggested from past spend instead of typed
+  in from scratch. A new **Auto-budget** button (Budgets header, next to the month
+  picker) opens a preview panel listing every expense category with a suggested
+  limit = its **average spend over the previous 3 months** (raw average to 2
+  decimals — no buffer, no rounding). Each row has a checkbox (default checked)
+  and an editable amount, and shows the category's current limit for that month
+  (highlighted, since applying would overwrite it). "Apply selected" writes only
+  the checked rows.
+  - `GET /api/budgets/suggest?month=YYYY-MM` returns the suggestions (0 when a
+    category has no history) + each category's existing limit. New
+    `priorMonthsRange(month, n)` util computes the rolling UTC window; the endpoint
+    is structured so a future `?strategy=` (last-month, all-time, …) can branch on
+    the window/math.
+  - `POST /api/budgets/bulk { month, items }` verifies every category is owned and
+    upserts all limits in one `$transaction` (same `categoryId_month` upsert as the
+    single-budget POST), so a partial apply can't half-write. New `budgetBulkSchema`.
+  - Applying invalidates `["budgets", month]` and `["report", month]`, so the
+    budgets summary and Reports reflect the change immediately.
+- **Savings.** A new **Savings** area (nav + `/savings`) for setting money aside
+  into named buckets, modeled as *transfers* rather than expenses — so deposits
+  and withdrawals never touch Income/Expense/Net totals, reports, or the
+  Transactions ledger.
+  - **Modeled additively.** A category `kind: "savings"` and transaction
+    `type: "deposit" | "withdraw"` slot into the existing schema (one nullable
+    `Category.target` Decimal for the optional goal; migration `savings`). Because
+    every ledger aggregation already sums only `income`/`expense` or filters
+    `kind === "expense"`, savings are excluded automatically; the only explicit
+    guards added are `type: { in: ["income","expense"] }` on `GET /api/transactions`
+    and hiding savings buckets on the Categories page.
+  - **Buckets with optional goals.** Each bucket tracks a running balance
+    (deposited − withdrawn). A progress bar + "to go" line appears **only** when a
+    target is set; goal-less buckets are pure balance tracking. Create buckets
+    inline (name + optional goal); edit the goal or delete a bucket from its card.
+  - **Deposit / withdraw.** New `POST /api/savings/movements` records a movement
+    (atomic ownership + `kind === "savings"` check), and **rejects a withdrawal
+    that exceeds the bucket balance** with a 400. `GET /api/savings` returns
+    per-bucket balances + total saved; `GET /api/savings/movements` is
+    cursor-paginated (optional `?categoryId`). New `src/lib/savings-data.ts`
+    aggregates balances in Postgres (`groupBy`), wrapped in React `cache()`.
+  - **UI.** Total-saved / goals stats, a bucket-card grid, a deposit/withdraw
+    form, and an infinite-scroll movement history — all on the Sprout design
+    system, with a piggy-bank icon and a distinct lime tile for savings.
+
+### Fixed
+- **Stale `categories` API tests.** The `makeCategory` test factory predated the
+  savings migration's nullable `Category.target` column, so its objects lacked
+  `target` while the API serializes every category through `serializeCategory`
+  (which always emits `target: null` for income/expense). Two full-object
+  assertions failed as a result; the factory now models the real row shape. (This
+  unblocked the CI suite — it was red on the base branch.)
+
+## [Unreleased] — 2026-06-24
+
+### Added
+- **Category icons.** Every category now shows a line icon on a colored tile,
+  consistent across the Categories grid, transaction rows, the dashboard's recent
+  activity, Budgets, and Reports (replacing the plain colored dots/squares). A
+  curated 24×24 / 1.7-stroke icon set (`src/lib/category-icon.tsx`, ported from
+  the "Sprout" design) is matched to a category by name keyword — e.g. Groceries →
+  cart, Dining → utensils, Transport → bus, Rent → house, Salary → banknote,
+  Investments → trending-up — with a kind-based fallback so custom categories
+  still get a sensible icon. Tiles follow the design: expense categories use a
+  soft 16% tint of their color with a dark-green icon, income categories a solid
+  positive-green tile with a white icon (`categoryTile()` in `src/lib/colors.ts`).
+  Icons are inline SVG, so there's no new runtime dependency.
+
 ## [Unreleased] — 2026-06-21
 
 ### Added

@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
-import { CHART_PALETTE } from "@/lib/colors";
+import { CHART_PALETTE, categoryTile } from "@/lib/colors";
+import { CategoryIcon } from "@/lib/category-icon";
 import { Donut } from "@/components/Donut";
 import { ReportSkeleton } from "@/components/Skeletons";
 import type { MonthlyReport } from "@/types";
@@ -27,7 +28,6 @@ export default function ReportsPage() {
       .slice()
       .sort((a, b) => b.spent - a.spent) ?? [];
   const totalSpend = spending.reduce((s, c) => s + c.spent, 0);
-  const maxSpend = spending[0]?.spent ?? 0;
 
   return (
     <>
@@ -98,7 +98,7 @@ export default function ReportsPage() {
                 <thead>
                   <tr>
                     <th>Category</th>
-                    <th>Share</th>
+                    <th>Budget used</th>
                     <th className="r">Spent</th>
                     <th className="r">Budget</th>
                   </tr>
@@ -109,24 +109,48 @@ export default function ReportsPage() {
                       <td>
                         <div className="nm">
                           <span
-                            className="mint-dot"
-                            style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }}
-                          />
+                            className="mint-cchip"
+                            style={categoryTile(
+                              CHART_PALETTE[i % CHART_PALETTE.length],
+                              "expense"
+                            )}
+                          >
+                            <CategoryIcon
+                              name={c.categoryName}
+                              kind="expense"
+                              size={22}
+                            />
+                          </span>
                           {c.categoryName}
                         </div>
                       </td>
                       <td>
-                        <div className="mint-cell-bar">
-                          <div className="track">
-                            <div
-                              className="fill"
-                              style={{
-                                width: `${maxSpend > 0 ? (c.spent / maxSpend) * 100 : 0}%`,
-                                background: CHART_PALETTE[i % CHART_PALETTE.length],
-                              }}
-                            />
-                          </div>
-                        </div>
+                        {c.limit != null && c.limit > 0 ? (
+                          (() => {
+                            const pct = (c.spent / c.limit) * 100;
+                            const over = c.spent > c.limit;
+                            return (
+                              <div className="mint-budgetbar">
+                                <div className="track">
+                                  <div
+                                    className="fill"
+                                    style={{
+                                      width: `${Math.min(100, pct)}%`,
+                                      background: over
+                                        ? "var(--neg)"
+                                        : CHART_PALETTE[i % CHART_PALETTE.length],
+                                    }}
+                                  />
+                                </div>
+                                <span className={"pct" + (over ? " over" : "")}>
+                                  {Math.round(pct)}%
+                                </span>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <span className="mint-nobudget">No budget</span>
+                        )}
                       </td>
                       <td className="r am">{formatCurrency(c.spent)}</td>
                       <td className="r">

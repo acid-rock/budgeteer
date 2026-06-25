@@ -122,13 +122,16 @@ export default function CategoriesPage() {
         <p className="mint-muted">No categories yet — add one above.</p>
       ) : (
         <div className="mint-catgrid">
-          {categories.map((c) => (
-            <CategoryCard
-              key={c.id}
-              category={c}
-              stat={statByCategory.get(c.id)}
-            />
-          ))}
+          {/* Savings buckets are managed on the Savings page, not here. */}
+          {categories
+            .filter((c) => c.kind !== "savings")
+            .map((c) => (
+              <CategoryCard
+                key={c.id}
+                category={c}
+                stat={statByCategory.get(c.id)}
+              />
+            ))}
         </div>
       )}
     </>
