@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Category, Transaction, TransactionType } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { byKind, formatCurrency } from "@/lib/utils";
 import { colorForCategory, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 
@@ -53,8 +53,7 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
     queryFn: fetchCategories,
     enabled: editing, // only load category options when actually editing
   });
-  const visibleCategories =
-    categories?.filter((c) => c.kind === type) ?? [];
+  const visibleCategories = byKind(categories, type);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["transactions"] });

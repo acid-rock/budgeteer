@@ -55,10 +55,12 @@ export const transactionUpdateSchema = z.object({
 
 export const categoryCreateSchema = z.object({
   name: categoryName,
-  // Matches the original lenient POST behavior: anything that isn't a known kind
-  // (including a missing/unknown value) falls back to "expense". The PATCH schema
-  // below is strict and rejects unknown kinds instead.
-  kind: z.enum(["income", "expense", "savings"]).catch("expense"),
+  // Strict and consistent with categoryUpdateSchema: an invalid or missing kind
+  // is a clear 400, not silently coerced to "expense". (Create requires a kind;
+  // update leaves it optional.)
+  kind: z.enum(["income", "expense", "savings"], {
+    error: "kind must be 'income', 'expense', or 'savings'",
+  }),
   // Optional savings goal; only meaningful for kind "savings". null clears it.
   target: nonNegativeLimit.nullish(),
 });

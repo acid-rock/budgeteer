@@ -6,6 +6,7 @@ import {
   dateToMonthString,
   todayDateString,
   monthRange,
+  byKind,
 } from "@/lib/utils";
 
 describe("formatCurrency", () => {
@@ -109,5 +110,24 @@ describe("monthRange", () => {
     expect(end.getUTCMonth()).toBe(1); // February
     expect(end.getUTCDate()).toBe(1);
     expect(end.getUTCHours()).toBe(0);
+  });
+});
+
+describe("byKind", () => {
+  const cats = [
+    { id: "a", kind: "income" as const },
+    { id: "b", kind: "expense" as const },
+    { id: "c", kind: "expense" as const },
+    { id: "d", kind: "savings" as const },
+  ];
+
+  it("returns only the categories matching the given kind", () => {
+    expect(byKind(cats, "expense").map((c) => c.id)).toEqual(["b", "c"]);
+    expect(byKind(cats, "income").map((c) => c.id)).toEqual(["a"]);
+    expect(byKind(cats, "savings").map((c) => c.id)).toEqual(["d"]);
+  });
+
+  it("returns an empty array for an undefined list", () => {
+    expect(byKind(undefined, "expense")).toEqual([]);
   });
 });

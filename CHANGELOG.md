@@ -51,7 +51,17 @@ All notable changes to Budgeteer. Format loosely follows
   `DATABASE_URL`/`DIRECT_URL`/`AUTH_*` env so `prisma generate` and `next build`
   resolve their references (no real secrets; Upstash left unset so rate limiting
   self-disables). In-progress runs on the same ref are cancelled when superseded.
-- **Auto-budget.** Budgets can now be suggested from past spend instead of typed
+- **Startup environment validation.** New `src/lib/env.ts` validates the server
+  env against a Zod schema — required `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
+  and the four `AUTH_GITHUB_*`/`AUTH_GOOGLE_*` vars, plus optional
+  `UPSTASH_REDIS_REST_URL`/`_TOKEN` — and exports a typed `env`. A new
+  `src/instrumentation.ts` imports it at server boot (Node runtime only), so a
+  missing or blank required var throws one clear error listing every problem
+  *before* the first request, instead of failing deep inside a handler. The module
+  is intentionally Node-only (kept out of the edge middleware to preserve the
+  existing adapter-free edge boundary); the Upstash vars stay read directly in
+  `rate-limit.ts` for the edge runtime. Vitest gains placeholder `test.env` so the
+  module is safe to import under test, plus unit tests for the schema.
   in from scratch. A new **Auto-budget** button (Budgets header, next to the month
   picker) opens a preview panel listing every expense category with a suggested
   limit = its **average spend over the previous 3 months** (raw average to 2
