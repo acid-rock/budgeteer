@@ -3,6 +3,7 @@ import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { TopBar } from "@/components/TopBar";
+import { QuickAdd } from "@/components/QuickAdd";
 import { auth } from "@/auth";
 import { dateToMonthString } from "@/lib/utils";
 import { getTransactionMonths } from "@/lib/dashboard-data";
@@ -60,6 +61,7 @@ export default async function RootLayout({
                   initials={initialsFor(session.user.name, session.user.email)}
                 />
                 <main className="mint-page">{children}</main>
+                <QuickAdd />
               </>
             ) : (
               <main>{children}</main>
