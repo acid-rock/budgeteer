@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { TransactionType } from "@/types";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
@@ -11,6 +12,23 @@ export function QuickAdd() {
   const [open, setOpen] = useState(false);
   const f = useTransactionForm({ onSuccess: () => setOpen(false) });
   const amountRef = useRef<HTMLInputElement>(null);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Open from the installed-app "Quick add" shortcut (/?quickadd=1), then strip
+  // the param so a refresh or back-nav doesn't reopen the sheet. Reacting to a
+  // URL param is a navigation side effect, hence the effect + setState.
+  useEffect(() => {
+    if (searchParams.get("quickadd") == null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true);
+    const params = new URLSearchParams(searchParams);
+    params.delete("quickadd");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [searchParams, router, pathname]);
 
   // Close on Escape and focus the amount field when the sheet opens.
   useEffect(() => {

@@ -56,7 +56,9 @@ export const config = {
   //  - Auth.js callback routes (api/auth/*)
   //  - The public health probe (api/health)
   //  - favicon / app icon (static metadata)
+  //  - PWA assets that must be publicly fetchable: the manifest, service worker,
+  //    offline shell, and home-screen icons (any *.png)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|login|api/auth|api/health).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sw.js|offline.html|.*\\.png|login|api/auth|api/health).*)",
   ],
 };
