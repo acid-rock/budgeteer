@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { dateToMonthString, formatCurrency } from "@/lib/utils";
 import { BudgetRow } from "@/components/BudgetRow";
+import { AutoBudgetPanel } from "@/components/AutoBudgetPanel";
 import { BudgetsSkeleton } from "@/components/Skeletons";
 import type { Budget, Category, MonthlyReport } from "@/types";
 
@@ -33,6 +34,7 @@ async function fetchReport(month: string): Promise<MonthlyReport> {
 
 export default function BudgetsPage() {
   const [month, setMonth] = useState(dateToMonthString());
+  const [showAuto, setShowAuto] = useState(false);
 
   const { data: categories, isLoading: loadingCategories } = useQuery({
     queryKey: ["categories"],
@@ -92,13 +94,26 @@ export default function BudgetsPage() {
           <h1>Budgets</h1>
           <p>Set limits and track what&rsquo;s left for {monthShort}.</p>
         </div>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="mint-input"
-        />
+        <div className="mint-cta">
+          <button
+            type="button"
+            className="mint-btn pri"
+            onClick={() => setShowAuto(true)}
+          >
+            Auto-budget
+          </button>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="mint-input"
+          />
+        </div>
       </div>
+
+      {showAuto && (
+        <AutoBudgetPanel month={month} onClose={() => setShowAuto(false)} />
+      )}
 
       {loading ? (
         <BudgetsSkeleton />

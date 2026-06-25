@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { serializeCategory } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
 import { parseJson, withErrorHandling, ConflictError } from "@/lib/http";
 import { parseWith, categoryUpdateSchema } from "@/lib/schemas";
@@ -18,13 +19,16 @@ export const PATCH = withErrorHandling(async (
 
   if (parsed.name !== undefined) data.name = parsed.name;
   if (parsed.kind !== undefined) data.kind = parsed.kind;
+  // target is nullish: a number sets the goal, null clears it, undefined leaves
+  // it untouched (so editing a name/kind doesn't wipe an existing goal).
+  if (parsed.target !== undefined) data.target = parsed.target;
 
   try {
     const category = await prisma.category.update({
       where: { id, userId },
       data,
     });
-    return NextResponse.json(category);
+    return NextResponse.json(serializeCategory(category));
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === "P2025") {

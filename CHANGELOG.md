@@ -5,15 +5,49 @@ All notable changes to Budgeteer. Format loosely follows
 
 ## [Unreleased] — 2026-06-25
 
-### Changed
-- **Reports: budget-vs-actual progress.** The "By category" table's old "Share"
-  column (each category's spend as a fraction of the largest) is now a **"Budget
-  used"** bar showing **spent ÷ budget limit** with the percent used beside it.
-  The fill tracks the category's color until it goes over budget, where the bar
-  and percentage turn red (`var(--neg)`); categories without a limit set show
-  "No budget" instead. This makes the table answer "am I within budget?" at a
-  glance rather than just comparing categories to each other. (`mint-budgetbar`
-  in `src/app/globals.css`, replacing `mint-cell-bar`.)
+### Added
+- **Auto-budget.** Budgets can now be suggested from past spend instead of typed
+  in from scratch. A new **Auto-budget** button (Budgets header, next to the month
+  picker) opens a preview panel listing every expense category with a suggested
+  limit = its **average spend over the previous 3 months** (raw average to 2
+  decimals — no buffer, no rounding). Each row has a checkbox (default checked)
+  and an editable amount, and shows the category's current limit for that month
+  (highlighted, since applying would overwrite it). "Apply selected" writes only
+  the checked rows.
+  - `GET /api/budgets/suggest?month=YYYY-MM` returns the suggestions (0 when a
+    category has no history) + each category's existing limit. New
+    `priorMonthsRange(month, n)` util computes the rolling UTC window; the endpoint
+    is structured so a future `?strategy=` (last-month, all-time, …) can branch on
+    the window/math.
+  - `POST /api/budgets/bulk { month, items }` verifies every category is owned and
+    upserts all limits in one `$transaction` (same `categoryId_month` upsert as the
+    single-budget POST), so a partial apply can't half-write. New `budgetBulkSchema`.
+  - Applying invalidates `["budgets", month]` and `["report", month]`, so the
+    budgets summary and Reports reflect the change immediately.
+- **Savings.** A new **Savings** area (nav + `/savings`) for setting money aside
+  into named buckets, modeled as *transfers* rather than expenses — so deposits
+  and withdrawals never touch Income/Expense/Net totals, reports, or the
+  Transactions ledger.
+  - **Modeled additively.** A category `kind: "savings"` and transaction
+    `type: "deposit" | "withdraw"` slot into the existing schema (one nullable
+    `Category.target` Decimal for the optional goal; migration `savings`). Because
+    every ledger aggregation already sums only `income`/`expense` or filters
+    `kind === "expense"`, savings are excluded automatically; the only explicit
+    guards added are `type: { in: ["income","expense"] }` on `GET /api/transactions`
+    and hiding savings buckets on the Categories page.
+  - **Buckets with optional goals.** Each bucket tracks a running balance
+    (deposited − withdrawn). A progress bar + "to go" line appears **only** when a
+    target is set; goal-less buckets are pure balance tracking. Create buckets
+    inline (name + optional goal); edit the goal or delete a bucket from its card.
+  - **Deposit / withdraw.** New `POST /api/savings/movements` records a movement
+    (atomic ownership + `kind === "savings"` check), and **rejects a withdrawal
+    that exceeds the bucket balance** with a 400. `GET /api/savings` returns
+    per-bucket balances + total saved; `GET /api/savings/movements` is
+    cursor-paginated (optional `?categoryId`). New `src/lib/savings-data.ts`
+    aggregates balances in Postgres (`groupBy`), wrapped in React `cache()`.
+  - **UI.** Total-saved / goals stats, a bucket-card grid, a deposit/withdraw
+    form, and an infinite-scroll movement history — all on the Sprout design
+    system, with a piggy-bank icon and a distinct lime tile for savings.
 
 ## [Unreleased] — 2026-06-24
 

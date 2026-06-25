@@ -26,6 +26,9 @@ const CAT_ICON_PATHS: Record<string, string> = {
   Freelance:
     '<rect x="3" y="5" width="18" height="11" rx="2"/><path d="M2 20h20"/>',
   Investments: '<path d="M3 17l6-6 4 4 7-7"/><path d="M16 8h5v5"/>',
+  // Piggy bank — used for savings buckets.
+  Savings:
+    '<path d="M19 6c-1.5 0-2.7 1.2-3 2-3.6-1.4-11-.4-11 5 0 1.8.8 3 2 4v3h3v-2h3v2h3v-3.5c.7-.5 1.3-1 1.7-1.5H21v-4h-1.6c-.2-.6-.6-1.1-1-1.5L19 6z"/><path d="M2 10v1.5A2.5 2.5 0 0 0 4.5 14"/><circle cx="15.5" cy="11" r="1"/>',
   _default: '<circle cx="12" cy="12" r="8"/>',
 };
 
@@ -42,11 +45,13 @@ const KEYWORD_KEYS: { match: RegExp; key: string }[] = [
   { match: /allowance|gift|present/, key: "Allowance" },
   { match: /salary|payroll|paycheck|wage|bonus/, key: "Salary" },
   { match: /freelance|contract|gig|consult/, key: "Freelance" },
-  { match: /invest|stock|dividend|crypto|interest|saving/, key: "Investments" },
+  { match: /invest|stock|dividend|crypto|interest/, key: "Investments" },
   { match: /misc|other|general/, key: "Miscellaneous" },
 ];
 
 function iconKeyFor(name: string, kind: string): string {
+  // Savings buckets always read as a piggy bank regardless of their name.
+  if (kind === "savings") return "Savings";
   const normalized = name.toLowerCase();
   for (const { match, key } of KEYWORD_KEYS) {
     if (match.test(normalized)) return key;

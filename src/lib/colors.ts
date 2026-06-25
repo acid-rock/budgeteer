@@ -20,6 +20,11 @@ export function categoryTile(
   if (kind === "income") {
     return { background: "var(--pos)", color: "#fff" };
   }
+  // Savings buckets get the bright lime tile with a dark-green icon so they read
+  // as distinct from spend/income categories across the app.
+  if (kind === "savings") {
+    return { background: "var(--lime)", color: "var(--green)" };
+  }
   return {
     background: `color-mix(in srgb, ${color} 16%, #fff)`,
     color: "var(--green)",
