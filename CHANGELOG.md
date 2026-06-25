@@ -6,6 +6,22 @@ All notable changes to Budgeteer. Format loosely follows
 ## [Unreleased] — 2026-06-25
 
 ### Added
+- **App-wide Quick-Add.** A floating `+` button (bottom-right, on every
+  authenticated page) opens a compact modal to log an expense or income from
+  anywhere — date defaults to today, the last-used category is remembered per
+  kind (localStorage), and the new row appears optimistically before the round
+  trip.
+  - **Shared create logic, no duplication.** The create flow was extracted into a
+    headless `useTransactionForm` hook (`src/hooks/useTransactionForm.ts`) used by
+    both the new `QuickAdd` modal and the existing inline `TransactionForm`; the
+    optimistic insert is a pure `prependTransaction` helper in
+    `src/lib/transactions.ts` (unit-tested).
+  - **Cross-view freshness.** A successful add invalidates `["transactions"]`,
+    `["report"]`, `["category-stats"]`, and `["budgets"]`, and calls
+    `router.refresh()` so the server-rendered dashboard totals update without a
+    full reload — from any page.
+  - **Mobile-aware.** The button respects `env(safe-area-inset-*)` so it clears a
+    phone's home indicator / browser bottom bar.
 - **Auto-budget.** Budgets can now be suggested from past spend instead of typed
   in from scratch. A new **Auto-budget** button (Budgets header, next to the month
   picker) opens a preview panel listing every expense category with a suggested
