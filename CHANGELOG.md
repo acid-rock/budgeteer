@@ -32,6 +32,17 @@ All notable changes to Budgeteer. Format loosely follows
   Shared CSV helpers live in `src/lib/csv.ts` (unit-tested) so the upcoming
   import flow can reuse the column format.
 
+### Changed
+- **Transaction indexes & explicit FK actions** (migration
+  `schema_index_hardening`). Replaced the single-column `[date]` and `[userId]`
+  indexes on `Transaction` with composite `[userId, date]` and `[userId, type]`
+  — matching how every ledger query scopes by user first, then filters by date
+  range or type (dashboard, reports, export). The `[categoryId]` FK index stays.
+  Also made the `Category → Transaction` and `Category → Budget` relations'
+  `onDelete: Restrict` explicit in the schema (it was already the effective
+  default and backs the app-level "category in use" pre-delete check), so no FK
+  SQL change was required.
+
 ## [Unreleased] — 2026-06-25
 
 ### Added
