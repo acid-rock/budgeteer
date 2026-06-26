@@ -2,27 +2,9 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-// Content-Security-Policy. Shipped in **report-only** mode for now: Next.js
-// injects inline bootstrap scripts and inline styles (next/font, Recharts), so
-// enforcing a strict policy needs nonce wiring and tuning first. Report-only
-// lets us observe violations without breaking the app. Tighten the script-src
-// (drop 'unsafe-inline'/'unsafe-eval' via nonces) before switching to the
-// enforcing `Content-Security-Policy` header.
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  // Avatars come from GitHub/Google over https; data: covers inline SVG/icons.
-  "img-src 'self' data: https:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-]
-  .join("; ")
-  .concat(";");
-
+// Static security headers. The Content-Security-Policy is NOT here — it's set
+// per-request in src/middleware.ts so it can carry a fresh nonce (allowing Next's
+// inline bootstrap scripts without 'unsafe-inline'). See src/lib/csp.ts.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -36,7 +18,6 @@ const securityHeaders = [
         },
       ]
     : []),
-  { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
 ];
 
 const nextConfig: NextConfig = {

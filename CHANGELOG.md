@@ -3,6 +3,58 @@
 All notable changes to Budgeteer. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — 2026-06-26
+
+### Added
+- **Installable PWA.** Budgeteer can now be installed to a phone home screen and
+  launched standalone.
+  - **Manifest.** New `src/app/manifest.ts` (served at `/manifest.webmanifest`)
+    with name, standalone display, Sprout theme/background colors, and a
+    "Quick add" launch shortcut that deep-links to `/?quickadd=1`. The QuickAdd
+    component opens its sheet when that param is present (then strips it).
+  - **Icons.** Generated home-screen PNGs (192/512 + a maskable 512 + an Apple
+    touch icon) from the green-tile / lime-"B" brand mark via a committed
+    `scripts/generate-pwa-icons.mjs` (sharp; the "B" is drawn as vector paths so
+    rasterization doesn't depend on a system font). Wired the manifest link,
+    `theme-color`, and `apple-touch-icon` into `src/app/layout.tsx`.
+  - **Service worker + offline shell.** `public/sw.js` (registered in production
+    via `ServiceWorkerRegister`) gives installability and serves a cached
+    `public/offline.html` when a navigation fails offline. It caches only static
+    build assets + icons — never API responses or HTML — so no per-user data is
+    stored on the device.
+  - **Auth middleware** now treats the manifest, service worker, offline shell,
+    and icon PNGs as public (like `favicon.ico`/`icon.svg`) so they're fetchable
+    without a session; all other routes stay guarded.
+- **CSV export.** New `GET /api/transactions/export` streams the authenticated
+  user's full ledger as a downloadable CSV — RFC 4180 quoting, a UTF-8 BOM so
+  Excel renders peso signs / unicode notes, and savings transfers excluded (same
+  as the ledger API). An **Export CSV** button sits in the Reports page header.
+  Shared CSV helpers live in `src/lib/csv.ts` (unit-tested) so the upcoming
+  import flow can reuse the column format.
+
+### Changed
+- **Transaction indexes & explicit FK actions** (migration
+  `schema_index_hardening`). Replaced the single-column `[date]` and `[userId]`
+  indexes on `Transaction` with composite `[userId, date]` and `[userId, type]`
+  — matching how every ledger query scopes by user first, then filters by date
+  range or type (dashboard, reports, export). The `[categoryId]` FK index stays.
+  Also made the `Category → Transaction` and `Category → Budget` relations'
+  `onDelete: Restrict` explicit in the schema (it was already the effective
+  default and backs the app-level "category in use" pre-delete check), so no FK
+  SQL change was required.
+- **Enforced Content-Security-Policy.** Switched the CSP from
+  `Content-Security-Policy-Report-Only` (which allowed `'unsafe-inline'` /
+  `'unsafe-eval'`) to an **enforcing** `Content-Security-Policy`, now built
+  per-request in `src/middleware.ts` with a fresh nonce (`src/lib/csp.ts`). Next's
+  inline bootstrap scripts are allowed via `'nonce-…' 'strict-dynamic'`, so
+  production `script-src` no longer needs `'unsafe-inline'`/`'unsafe-eval'`
+  (development keeps them for HMR's `eval`). `style-src` retains `'unsafe-inline'`
+  because Recharts / next-font inline styles can't carry a nonce — that's where
+  the script-side hardening matters. The static security headers stay in
+  `next.config.ts`; the middleware matcher now also covers `/login`. Verified the
+  served HTML: every `<script>` carries the matching nonce, zero un-nonced inline
+  scripts.
+
 ## [Unreleased] — 2026-06-25
 
 ### Added
@@ -28,7 +80,17 @@ All notable changes to Budgeteer. Format loosely follows
   `DATABASE_URL`/`DIRECT_URL`/`AUTH_*` env so `prisma generate` and `next build`
   resolve their references (no real secrets; Upstash left unset so rate limiting
   self-disables). In-progress runs on the same ref are cancelled when superseded.
-- **Auto-budget.** Budgets can now be suggested from past spend instead of typed
+- **Startup environment validation.** New `src/lib/env.ts` validates the server
+  env against a Zod schema — required `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
+  and the four `AUTH_GITHUB_*`/`AUTH_GOOGLE_*` vars, plus optional
+  `UPSTASH_REDIS_REST_URL`/`_TOKEN` — and exports a typed `env`. A new
+  `src/instrumentation.ts` imports it at server boot (Node runtime only), so a
+  missing or blank required var throws one clear error listing every problem
+  *before* the first request, instead of failing deep inside a handler. The module
+  is intentionally Node-only (kept out of the edge middleware to preserve the
+  existing adapter-free edge boundary); the Upstash vars stay read directly in
+  `rate-limit.ts` for the edge runtime. Vitest gains placeholder `test.env` so the
+  module is safe to import under test, plus unit tests for the schema.
   in from scratch. A new **Auto-budget** button (Budgets header, next to the month
   picker) opens a preview panel listing every expense category with a suggested
   limit = its **average spend over the previous 3 months** (raw average to 2

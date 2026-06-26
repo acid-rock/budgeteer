@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { TopBar } from "@/components/TopBar";
 import { QuickAdd } from "@/components/QuickAdd";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { auth } from "@/auth";
 import { dateToMonthString } from "@/lib/utils";
 import { getTransactionMonths } from "@/lib/dashboard-data";
@@ -22,6 +23,20 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "Budgeteer",
   description: "A simple personal finance tracker",
+  applicationName: "Budgeteer",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Budgeteer",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/apple-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0e5a3c",
 };
 
 function initialsFor(name?: string | null, email?: string | null): string {
@@ -51,6 +66,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body>
+        <ServiceWorkerRegister />
         <Providers>
           <div className="mint">
             {session?.user ? (

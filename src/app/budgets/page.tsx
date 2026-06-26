@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { dateToMonthString, formatCurrency } from "@/lib/utils";
+import { byKind, dateToMonthString, formatCurrency } from "@/lib/utils";
 import { BudgetRow } from "@/components/BudgetRow";
 import { AutoBudgetPanel } from "@/components/AutoBudgetPanel";
 import { BudgetsSkeleton } from "@/components/Skeletons";
@@ -50,8 +50,7 @@ export default function BudgetsPage() {
   });
 
   // Budgets apply to expense categories only.
-  const expenseCategories =
-    categories?.filter((c) => c.kind === "expense") ?? [];
+  const expenseCategories = byKind(categories, "expense");
   const budgetByCategory = new Map(
     budgets?.map((b) => [b.categoryId, b]) ?? []
   );
