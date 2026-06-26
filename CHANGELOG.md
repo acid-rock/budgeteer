@@ -31,6 +31,16 @@ All notable changes to Budgeteer. Format loosely follows
   as the ledger API). An **Export CSV** button sits in the Reports page header.
   Shared CSV helpers live in `src/lib/csv.ts` (unit-tested) so the upcoming
   import flow can reuse the column format.
+- **CSV import.** New `POST /api/transactions/import` ingests a CSV ledger for
+  the authenticated user. Columns are auto-mapped by header (case-insensitive,
+  any order — so an exported file round-trips); `Note` is optional. Parsing is
+  server-side via a new RFC 4180 `parseCsv` in `src/lib/csv.ts`, every row is
+  validated against a new `transactionImportRowSchema` Zod schema, and the
+  **whole file is rejected on the first bad row** (400 with the spreadsheet row
+  number — no partial import). Valid rows are written in a single Prisma
+  `$transaction`, match-or-creating categories by `(name, kind)`. An **Import
+  CSV** button (`src/components/ImportCsv.tsx`) sits beside Export in the Reports
+  header and refreshes every affected view on success.
 
 ### Changed
 - **Transaction indexes & explicit FK actions** (migration

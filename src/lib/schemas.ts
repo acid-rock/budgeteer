@@ -40,6 +40,21 @@ export const transactionCreateSchema = z.object({
   note,
 });
 
+// One row of an imported CSV ledger, after the header→field mapping in
+// src/lib/csv.ts. Date accepts ISO or YYYY-MM-DD; amount coerces like a manual
+// entry; `category` is a name the import route matches-or-creates by (name,
+// kind). Strict on purpose: a single bad row rejects the whole file (no partial
+// import), so every constraint here is a hard stop.
+export const transactionImportRowSchema = z.object({
+  date: z.coerce.date({ error: "date must be a valid date" }),
+  type: z.enum(["income", "expense"], {
+    error: "type must be 'income' or 'expense'",
+  }),
+  category: categoryName,
+  note,
+  amount: positiveAmount,
+});
+
 export const transactionUpdateSchema = z.object({
   type: z
     .enum(["income", "expense"], { error: "type must be 'income' or 'expense'" })
