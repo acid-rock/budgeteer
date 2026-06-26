@@ -42,6 +42,18 @@ All notable changes to Budgeteer. Format loosely follows
   `onDelete: Restrict` explicit in the schema (it was already the effective
   default and backs the app-level "category in use" pre-delete check), so no FK
   SQL change was required.
+- **Enforced Content-Security-Policy.** Switched the CSP from
+  `Content-Security-Policy-Report-Only` (which allowed `'unsafe-inline'` /
+  `'unsafe-eval'`) to an **enforcing** `Content-Security-Policy`, now built
+  per-request in `src/middleware.ts` with a fresh nonce (`src/lib/csp.ts`). Next's
+  inline bootstrap scripts are allowed via `'nonce-…' 'strict-dynamic'`, so
+  production `script-src` no longer needs `'unsafe-inline'`/`'unsafe-eval'`
+  (development keeps them for HMR's `eval`). `style-src` retains `'unsafe-inline'`
+  because Recharts / next-font inline styles can't carry a nonce — that's where
+  the script-side hardening matters. The static security headers stay in
+  `next.config.ts`; the middleware matcher now also covers `/login`. Verified the
+  served HTML: every `<script>` carries the matching nonce, zero un-nonced inline
+  scripts.
 
 ## [Unreleased] — 2026-06-25
 
