@@ -101,23 +101,26 @@ model Transaction {
   amount     Decimal  @db.Decimal(12, 2) // positive; `type` gives the direction
   date       DateTime @default(now())
   note       String?
-  category   Category @relation(fields: [categoryId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   categoryId String
   createdAt  DateTime @default(now())
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([date])
+  // Every ledger query scopes by userId first, then filters by date range or
+  // type — so composite indexes serve them; the old single-column [date]/[userId]
+  // are redundant under these. [categoryId] stays for the FK / category lookups.
+  @@index([userId, date])
+  @@index([userId, type])
   @@index([categoryId])
-  @@index([userId])
 }
 
 // A monthly spending limit for one category.
 // `month` is the first day of the month (UTC), e.g. 2026-05-01, for easy range queries.
 model Budget {
   id         String   @id @default(cuid())
-  category   Category @relation(fields: [categoryId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   categoryId String
   month      DateTime
   limit      Decimal  @db.Decimal(12, 2)
