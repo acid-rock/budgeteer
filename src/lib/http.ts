@@ -69,6 +69,14 @@ export function handleApiError(error: unknown): NextResponse {
         { status: 409 }
       );
     }
+    // Serializable write-conflict / deadlock — two transactions raced and Postgres
+    // aborted this one. The caller can safely retry.
+    if (error.code === "P2034") {
+      return NextResponse.json(
+        { error: "The operation conflicted with another change. Please try again." },
+        { status: 409 }
+      );
+    }
   }
 
   logger.error("Unhandled API error", error);
