@@ -6,8 +6,12 @@ import {
   dateToMonthString,
   todayDateString,
   monthRange,
+  priorMonthsRange,
+  percentDelta,
+  overBudgetCategories,
   byKind,
 } from "@/lib/utils";
+import type { CategoryReportRow } from "@/types";
 
 describe("formatCurrency", () => {
   it("formats a positive peso amount with thousands separator", () => {
@@ -110,6 +114,70 @@ describe("monthRange", () => {
     expect(end.getUTCMonth()).toBe(1); // February
     expect(end.getUTCDate()).toBe(1);
     expect(end.getUTCHours()).toBe(0);
+  });
+});
+
+describe("priorMonthsRange", () => {
+  it("for n=1 spans exactly the prior calendar month (end = first of `month`)", () => {
+    const { start, end } = priorMonthsRange("2026-05", 1);
+    expect(start).toEqual(new Date("2026-04-01T00:00:00.000Z"));
+    expect(end).toEqual(new Date("2026-05-01T00:00:00.000Z"));
+  });
+
+  it("crosses a year boundary (January → prior December)", () => {
+    const { start, end } = priorMonthsRange("2026-01", 1);
+    expect(start).toEqual(new Date("2025-12-01T00:00:00.000Z"));
+    expect(end).toEqual(new Date("2026-01-01T00:00:00.000Z"));
+  });
+});
+
+describe("percentDelta", () => {
+  it("computes a rounded positive change", () => {
+    expect(percentDelta(110, 100)).toBe(10);
+  });
+
+  it("computes a negative change", () => {
+    expect(percentDelta(90, 100)).toBe(-10);
+  });
+
+  it("returns 0 when unchanged", () => {
+    expect(percentDelta(100, 100)).toBe(0);
+  });
+
+  it("returns null when there is no prior baseline (avoids divide-by-zero)", () => {
+    expect(percentDelta(50, 0)).toBeNull();
+  });
+
+  it("rounds to the nearest whole percent", () => {
+    expect(percentDelta(127, 100)).toBe(27);
+    expect(percentDelta(1265, 1000)).toBe(27); // 26.5 → 27
+  });
+});
+
+describe("overBudgetCategories", () => {
+  const row = (over: Partial<CategoryReportRow>): CategoryReportRow => ({
+    categoryId: "c",
+    categoryName: "Cat",
+    spent: 0,
+    limit: null,
+    ...over,
+  });
+
+  it("includes categories at OR over their limit", () => {
+    const rows = [
+      row({ categoryId: "at", spent: 100, limit: 100 }), // exactly at limit
+      row({ categoryId: "over", spent: 150, limit: 100 }),
+      row({ categoryId: "under", spent: 80, limit: 100 }),
+    ];
+    expect(overBudgetCategories(rows).map((r) => r.categoryId)).toEqual(["at", "over"]);
+  });
+
+  it("ignores categories with no budget or a zero limit", () => {
+    const rows = [
+      row({ categoryId: "nolimit", spent: 500, limit: null }),
+      row({ categoryId: "zero", spent: 500, limit: 0 }),
+    ];
+    expect(overBudgetCategories(rows)).toEqual([]);
   });
 });
 

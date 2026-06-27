@@ -1,7 +1,7 @@
 // Shared formatting + date helpers. Keep these pure and dependency-free
 // (the only import is a type, which is erased at build time).
 
-import type { CategoryKind } from "@/types";
+import type { CategoryKind, CategoryReportRow } from "@/types";
 
 // Single-user app based in the Philippines. "Current" dates (this month, today)
 // are computed in this zone so they match the user's wall clock regardless of
@@ -78,6 +78,25 @@ export function priorMonthsRange(
   const end = new Date(Date.UTC(year, m - 1, 1));
   const start = new Date(Date.UTC(year, m - 1 - n, 1));
   return { start, end };
+}
+
+// Percentage change from `prior` to `current`, rounded to a whole percent.
+// Returns null when there's no baseline (prior is 0) — a percent change from
+// zero is undefined, so callers show "no prior data" rather than a bogus number.
+export function percentDelta(current: number, prior: number): number | null {
+  if (prior === 0) return null;
+  return Math.round(((current - prior) / prior) * 100);
+}
+
+// Categories whose spend has reached or passed their budget limit — the overspend
+// warning surfaced in Reports. Uses ≥ (at OR over limit) and ignores categories
+// with no positive limit.
+export function overBudgetCategories(
+  rows: CategoryReportRow[]
+): CategoryReportRow[] {
+  return rows.filter(
+    (r) => r.limit != null && r.limit > 0 && r.spent >= r.limit
+  );
 }
 
 // Income / expense / savings categories are filtered by `kind` all over the app

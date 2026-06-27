@@ -6,6 +6,16 @@ All notable changes to Budgeteer. Format loosely follows
 ## [Unreleased] — 2026-06-26
 
 ### Added
+- **Insights & alerts.**
+  - **Overspend warning (Reports).** A category that has reached or passed its
+    monthly budget limit (`spent ≥ limit`) now raises a warning banner at the top
+    of the report listing each over-budget category with its spend / limit / %,
+    and the per-row budget bar turns red at the limit (not only past it). Backed
+    by a pure `overBudgetCategories` helper in `src/lib/utils.ts`.
+  - **Prior-month trend deltas (Dashboard).** The Income and Expenses stat cards
+    show a `▲/▼ N% vs last month` line, tone-aware (rising income green, rising
+    spending red). Reuses `getMonthTotals` over the `priorMonthsRange(month, 1)`
+    window and a new pure `percentDelta` helper (null baseline → line hidden).
 - **Installable PWA.** Budgeteer can now be installed to a phone home screen and
   launched standalone.
   - **Manifest.** New `src/app/manifest.ts` (served at `/manifest.webmanifest`)
