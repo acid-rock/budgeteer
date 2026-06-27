@@ -27,6 +27,13 @@ jobs:
       AUTH_GOOGLE_ID: ci-placeholder
       AUTH_GOOGLE_SECRET: ci-placeholder
       NEXT_TELEMETRY_DISABLED: "1"
+      # Sentry source-map upload. These come from repo secrets and are empty when
+      # unset — the Sentry build plugin then skips the upload and the build still
+      # succeeds. Set them in repo Settings → Secrets to enable de-minified traces.
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
       - name: Checkout

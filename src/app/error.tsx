@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
 
 // Route-segment error boundary. Catches render/runtime errors below the root
@@ -15,6 +16,7 @@ export default function Error({
 }) {
   useEffect(() => {
     logger.error("Route segment error boundary", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

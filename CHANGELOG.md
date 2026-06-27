@@ -5,6 +5,35 @@ All notable changes to Budgeteer. Format loosely follows
 
 ## [Unreleased] — 2026-06-26
 
+### Added
+- **Operational safety (backups & monitoring).**
+  - **Sentry error monitoring.** `@sentry/nextjs` reports client **and** server
+    errors. Because every API route is wrapped in `withErrorHandling` (which
+    catches errors before Next's `onRequestError` hook fires), the unhandled-500
+    branch in `src/lib/http.ts` calls `Sentry.captureException` directly; the two
+    client error boundaries (`error.tsx`, `global-error.tsx`) capture there too.
+    Runtime init lives in `sentry.{server,edge}.config.ts` +
+    `instrumentation-client.ts`, loaded from `src/instrumentation.ts`
+    (`register` / `onRequestError`); `next.config.ts` is wrapped in
+    `withSentryConfig`. Browser events tunnel through a same-origin `/monitoring`
+    route so the strict `connect-src 'self'` CSP doesn't block them (that route is
+    excluded from the auth middleware). **Finance-data scrubbing** is mandatory:
+    `sendDefaultPii: false` plus a `beforeSend` (`src/lib/sentry-scrub.ts`) that
+    drops request bodies/cookies and redacts amounts/notes/emails by key; the same
+    redaction runs in the logger's `normalizeMeta`. Session Replay is off; tracing
+    sample rate is 0. The SDK runs disabled when `NEXT_PUBLIC_SENTRY_DSN` is unset,
+    so the app boots with no DSN. Source maps upload from CI when
+    `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` are set, skipped gracefully
+    otherwise.
+  - **Error sink (fallback).** `src/lib/logger.ts` still forwards production
+    error-level logs (fire-and-forget JSON) to an optional `ERROR_SINK_URL`
+    webhook for anyone not on Sentry — edge-safe, dormant when a DSN is set.
+  - **Docs.** New **Production operations** section in the README covering Neon
+    point-in-time recovery / history retention, Sentry, and pointing an uptime
+    monitor at the existing `GET /api/health` probe. Refreshed the stale
+    feature-status table (budget-vs-actual, CSP, PWA, CSV, account deletion, etc.
+    now marked done).
+
 ### Changed
 - **Concurrency hardening (savings withdrawals).** The withdrawal balance check
   in `POST /api/savings/movements` reads the running balance then inserts; under
