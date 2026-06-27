@@ -17,6 +17,7 @@ monthly budget workflow.
 | Charts | Recharts (spending donut + daily-spend bars) |
 | Validation | Zod (per-route request schemas) |
 | Rate limiting | Upstash Redis (`@upstash/ratelimit`) |
+| Monitoring | Sentry (`@sentry/nextjs`) — client + server, finance-data scrubbed |
 | Tooling | ESLint (flat config) · Vitest |
 
 ## Design
@@ -56,12 +57,15 @@ Required variables:
 | `AUTH_GOOGLE_ID` | Google OAuth client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
 
-Optional (API rate limiting — disabled when unset):
+Optional:
 
 | Variable | Description |
 |---|---|
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL (from console.upstash.com) |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL (from console.upstash.com) — API rate limiting; disabled when unset |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
+| `ERROR_SINK_URL` | Webhook URL that production error logs are forwarded to (see [Production operations](#production-operations)); no forwarding when unset |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for client + server error monitoring; SDK runs disabled when unset |
+| `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` | Build-time only — source-map upload (set in CI); build skips upload when absent |
 
 > **Deploying with rate limiting:** the limiter runs in edge middleware, which
 > inlines env vars **at build time** — set the `UPSTASH_*` vars in your host
@@ -102,6 +106,67 @@ npm run dev   # http://localhost:3000
 | `npm run db:migrate` | Create and apply a new Prisma migration |
 | `npm run db:seed` | Seed starter categories for a user |
 | `npm run db:studio` | Open Prisma Studio |
+
+## Production operations
+
+Operational safety for a deployed instance: backups, error reporting, and uptime.
+
+### Backups & point-in-time recovery (Neon)
+
+Neon keeps continuous, WAL-based backups of the database, so recovery is a matter
+of **history retention** rather than scheduling dumps:
+
+1. In the **Neon Console → your project → Settings → Storage** (a.k.a. *History
+   retention* / *Point-in-time restore*), set the retention window to the longest
+   your plan allows (free tier is short — ~1 day; paid plans go up to 30 days).
+   Longer retention = further back you can restore.
+2. To recover, use Neon's **Restore** (time travel): restore the branch to a past
+   timestamp, or create a new branch *as of* that timestamp to inspect data
+   before promoting it. See [neon.tech/docs/introduction/point-in-time-restore](https://neon.tech/docs/introduction/point-in-time-restore).
+3. For a portable off-site copy, `pg_dump` against `DIRECT_URL` on a schedule
+   (e.g. a daily CI/cron job) and store the artifact somewhere durable.
+
+> Record the retention window you chose here once set, so the recovery boundary
+> is documented for whoever is on call.
+
+### Error monitoring (Sentry)
+
+Client **and** server errors report to [Sentry](https://sentry.io) via
+`@sentry/nextjs`. Set `NEXT_PUBLIC_SENTRY_DSN` in the environment to turn it on;
+unset, the SDK initializes disabled and the app runs normally.
+
+What's wired:
+
+- **Server API errors** — every route is wrapped in `withErrorHandling`
+  (`src/lib/http.ts`), which catches errors before Next's `onRequestError` hook
+  sees them, so the unhandled-500 branch calls `Sentry.captureException` directly.
+- **Client errors** — `src/app/error.tsx` and `src/app/global-error.tsx` capture
+  the React error boundary's error.
+- **Browser transport & CSP** — events tunnel through the same-origin
+  `/monitoring` route (`tunnelRoute`), so the strict `connect-src 'self'` CSP and
+  ad-blockers don't drop them. That route is excluded from the auth middleware.
+- **Finance-data scrubbing** — `sendDefaultPii: false` plus a `beforeSend`
+  (`src/lib/sentry-scrub.ts`) that drops request bodies/cookies and redacts
+  amounts, notes, and emails by key. Session Replay is **off**. The same redaction
+  runs in the logger's `normalizeMeta`.
+- **Source maps** — `withSentryConfig` uploads them when `SENTRY_AUTH_TOKEN`,
+  `SENTRY_ORG`, and `SENTRY_PROJECT` are set (wired into CI as repo secrets); with
+  no token the build skips the upload and still succeeds.
+
+A `beforeSend`-scrubbed test event proves no amounts/notes/emails leave the app
+(`src/__tests__/lib/sentry-scrub.test.ts`).
+
+**Generic fallback seam:** `ERROR_SINK_URL` (`src/lib/logger.ts`) still POSTs
+production error-level logs to a webhook (fire-and-forget JSON) for anyone not
+using Sentry — left dormant when a DSN is configured.
+
+### Uptime monitoring
+
+`GET /api/health` is a public, auth-exempt readiness probe that pings the
+database: **200** `{ status: "ok" }` when reachable, **503** when not. Point an
+external monitor (Better Stack, UptimeRobot, Pingdom, or Vercel's own checks) at
+`https://yourdomain.com/api/health` and alert on non-200 so a database outage
+pages you rather than surfacing as user errors.
 
 ## Project layout
 
@@ -145,6 +210,12 @@ src/
 | Transactions — cursor pagination ("Load more") | Done |
 | Reliability — error boundaries, safe JSON parsing, centralized error handling + logging | Done |
 | Security — Zod validation, atomic multi-step writes, security headers, per-IP API rate limiting | Done |
-| Tooling — ESLint, Vitest API suite, `/api/health` probe | Done |
-| Reports — budget-vs-actual progress bar visualization | TODO |
-| CSP — currently report-only; needs nonce wiring before enforcing | TODO |
+| Tooling — ESLint, Vitest API suite, `/api/health` probe, GitHub Actions CI | Done |
+| Reports — budget-vs-actual progress bar + overspend alerts | Done |
+| Dashboard — prior-month trend deltas | Done |
+| CSP — enforcing with per-request nonce | Done |
+| PWA — installable, offline app shell | Done |
+| CSV — export + import (round-trippable ledger) | Done |
+| Account deletion — full data removal + session clear | Done |
+| Concurrency — serializable savings withdrawals | Done |
+| Operations — Sentry error monitoring (scrubbed), `/api/health` uptime probe, Neon PITR docs | Done |
