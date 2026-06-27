@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
 
 // Tagged error for malformed or invalid request bodies. Thrown by `parseJson`
@@ -69,9 +70,21 @@ export function handleApiError(error: unknown): NextResponse {
         { status: 409 }
       );
     }
+    // Serializable write-conflict / deadlock — two transactions raced and Postgres
+    // aborted this one. The caller can safely retry.
+    if (error.code === "P2034") {
+      return NextResponse.json(
+        { error: "The operation conflicted with another change. Please try again." },
+        { status: 409 }
+      );
+    }
   }
 
+  // withErrorHandling catches route errors here, so Next's onRequestError hook
+  // never sees them — report to Sentry explicitly. beforeSend (sentry-scrub)
+  // strips any finance data before transmission.
   logger.error("Unhandled API error", error);
+  Sentry.captureException(error);
   return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
 }
 

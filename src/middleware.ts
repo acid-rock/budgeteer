@@ -72,11 +72,13 @@ export const config = {
   //  - Next.js internals (_next/*)
   //  - Auth.js callback routes (api/auth/*)
   //  - The public health probe (api/health)
+  //  - The Sentry tunnel (monitoring) — browser error events POST here; it must
+  //    not be auth-gated or it would 307 to /login and swallow the events.
   //  - favicon / app icon (static metadata)
   //  - PWA assets that must be publicly fetchable (manifest, SW, offline, *.png)
   // NOTE: /login IS matched (unlike before) so it gets the CSP header; the auth
   // redirect is skipped for it in the handler above.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sw.js|offline.html|.*\\.png|api/auth|api/health).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sw.js|offline.html|.*\\.png|api/auth|api/health|monitoring).*)",
   ],
 };

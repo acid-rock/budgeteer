@@ -21,6 +21,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
     "@prisma/client": "^6.5.0",
+    "@sentry/nextjs": "^10.62.0",
     "@tanstack/react-query": "^5.66.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",

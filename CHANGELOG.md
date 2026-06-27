@@ -6,6 +6,63 @@ All notable changes to Budgeteer. Format loosely follows
 ## [Unreleased] — 2026-06-26
 
 ### Added
+- **Operational safety (backups & monitoring).**
+  - **Sentry error monitoring.** `@sentry/nextjs` reports client **and** server
+    errors. Because every API route is wrapped in `withErrorHandling` (which
+    catches errors before Next's `onRequestError` hook fires), the unhandled-500
+    branch in `src/lib/http.ts` calls `Sentry.captureException` directly; the two
+    client error boundaries (`error.tsx`, `global-error.tsx`) capture there too.
+    Runtime init lives in `sentry.{server,edge}.config.ts` +
+    `instrumentation-client.ts`, loaded from `src/instrumentation.ts`
+    (`register` / `onRequestError`); `next.config.ts` is wrapped in
+    `withSentryConfig`. Browser events tunnel through a same-origin `/monitoring`
+    route so the strict `connect-src 'self'` CSP doesn't block them (that route is
+    excluded from the auth middleware). **Finance-data scrubbing** is mandatory:
+    `sendDefaultPii: false` plus a `beforeSend` (`src/lib/sentry-scrub.ts`) that
+    drops request bodies/cookies and redacts amounts/notes/emails by key; the same
+    redaction runs in the logger's `normalizeMeta`. Session Replay is off; tracing
+    sample rate is 0. The SDK runs disabled when `NEXT_PUBLIC_SENTRY_DSN` is unset,
+    so the app boots with no DSN. Source maps upload from CI when
+    `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` are set, skipped gracefully
+    otherwise.
+  - **Error sink (fallback).** `src/lib/logger.ts` still forwards production
+    error-level logs (fire-and-forget JSON) to an optional `ERROR_SINK_URL`
+    webhook for anyone not on Sentry — edge-safe, dormant when a DSN is set.
+  - **Docs.** New **Production operations** section in the README covering Neon
+    point-in-time recovery / history retention, Sentry, and pointing an uptime
+    monitor at the existing `GET /api/health` probe. Refreshed the stale
+    feature-status table (budget-vs-actual, CSP, PWA, CSV, account deletion, etc.
+    now marked done).
+
+### Changed
+- **Concurrency hardening (savings withdrawals).** The withdrawal balance check
+  in `POST /api/savings/movements` reads the running balance then inserts; under
+  default isolation two concurrent withdrawals could both pass and overdraw the
+  bucket. The `$transaction` now runs at **Serializable** isolation so Postgres
+  aborts the racing write, and serialization conflicts (`P2034`) map to a clean
+  **409 "please try again"** in `handleApiError` instead of a 500. `GET` also
+  gains an explicit ownership pre-check on `?categoryId` (defense-in-depth: a
+  foreign id is now a clear 404 rather than a silently-empty list).
+
+### Added
+- **Account deletion.** New `DELETE /api/account` permanently removes the
+  authenticated user and all their data, then clears the session cookie so the
+  orphaned JWT can't be replayed. Because `Transaction`/`Budget` → `Category` are
+  `onDelete: Restrict`, a bare `user.delete` cascade could trip the FK check, so
+  the route deletes transactions → budgets → categories → user in one
+  `$transaction` (accounts/sessions still cascade). A **Danger zone** on the
+  Settings page (`src/components/DeleteAccount.tsx`) gates it behind a typed
+  `DELETE` confirmation and nudges the user to export their data first.
+- **Insights & alerts.**
+  - **Overspend warning (Reports).** A category that has reached or passed its
+    monthly budget limit (`spent ≥ limit`) now raises a warning banner at the top
+    of the report listing each over-budget category with its spend / limit / %,
+    and the per-row budget bar turns red at the limit (not only past it). Backed
+    by a pure `overBudgetCategories` helper in `src/lib/utils.ts`.
+  - **Prior-month trend deltas (Dashboard).** The Income and Expenses stat cards
+    show a `▲/▼ N% vs last month` line, tone-aware (rising income green, rising
+    spending red). Reuses `getMonthTotals` over the `priorMonthsRange(month, 1)`
+    window and a new pure `percentDelta` helper (null baseline → line hidden).
 - **Installable PWA.** Budgeteer can now be installed to a phone home screen and
   launched standalone.
   - **Manifest.** New `src/app/manifest.ts` (served at `/manifest.webmanifest`)
@@ -31,6 +88,16 @@ All notable changes to Budgeteer. Format loosely follows
   as the ledger API). An **Export CSV** button sits in the Reports page header.
   Shared CSV helpers live in `src/lib/csv.ts` (unit-tested) so the upcoming
   import flow can reuse the column format.
+- **CSV import.** New `POST /api/transactions/import` ingests a CSV ledger for
+  the authenticated user. Columns are auto-mapped by header (case-insensitive,
+  any order — so an exported file round-trips); `Note` is optional. Parsing is
+  server-side via a new RFC 4180 `parseCsv` in `src/lib/csv.ts`, every row is
+  validated against a new `transactionImportRowSchema` Zod schema, and the
+  **whole file is rejected on the first bad row** (400 with the spreadsheet row
+  number — no partial import). Valid rows are written in a single Prisma
+  `$transaction`, match-or-creating categories by `(name, kind)`. An **Import
+  CSV** button (`src/components/ImportCsv.tsx`) sits beside Export in the Reports
+  header and refreshes every affected view on success.
 
 ### Changed
 - **Transaction indexes & explicit FK actions** (migration

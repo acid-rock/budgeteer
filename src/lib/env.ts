@@ -35,6 +35,17 @@ const envSchema = z.object({
   // disabled and the app still runs.
   UPSTASH_REDIS_REST_URL: optionalSecret,
   UPSTASH_REDIS_REST_TOKEN: optionalSecret,
+
+  // Error sink (optional) — a webhook URL that production error logs are POSTed
+  // to. Read directly in src/lib/logger.ts (edge-safe); declared here for
+  // validation completeness, like the Upstash vars.
+  ERROR_SINK_URL: optionalSecret,
+
+  // Sentry DSN (optional). NEXT_PUBLIC_* so the browser SDK can read it; inlined
+  // at build time. When unset the SDK initializes disabled and the app runs
+  // normally. The build-time SENTRY_AUTH_TOKEN/ORG/PROJECT (source-map upload)
+  // live only in CI and aren't validated here.
+  NEXT_PUBLIC_SENTRY_DSN: optionalSecret,
 });
 
 export type Env = z.infer<typeof envSchema>;
