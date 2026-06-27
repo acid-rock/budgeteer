@@ -2,7 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { dateToMonthString, formatCurrency } from "@/lib/utils";
+import {
+  dateToMonthString,
+  formatCurrency,
+  overBudgetCategories,
+} from "@/lib/utils";
 import { CHART_PALETTE, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 import { Donut } from "@/components/Donut";
@@ -29,6 +33,11 @@ export default function ReportsPage() {
       .slice()
       .sort((a, b) => b.spent - a.spent) ?? [];
   const totalSpend = spending.reduce((s, c) => s + c.spent, 0);
+  // Categories at or over their budget limit, biggest overage first — the
+  // overspend alert shown above the report.
+  const overBudget = overBudgetCategories(data?.byCategory ?? [])
+    .slice()
+    .sort((a, b) => b.spent - b.limit! - (a.spent - a.limit!));
 
   return (
     <>
@@ -57,6 +66,30 @@ export default function ReportsPage() {
         <ReportSkeleton />
       ) : (
         <>
+          {overBudget.length > 0 && (
+            <div className="mint-alert" role="alert">
+              <span className="ic" aria-hidden>
+                ⚠
+              </span>
+              <div>
+                <strong>
+                  {overBudget.length === 1
+                    ? "1 category is over budget"
+                    : `${overBudget.length} categories are over budget`}
+                </strong>
+                <div className="det">
+                  {overBudget.map((c) => (
+                    <span key={c.categoryId}>
+                      {c.categoryName} — {formatCurrency(c.spent)} /{" "}
+                      {formatCurrency(c.limit!)} (
+                      {Math.round((c.spent / c.limit!) * 100)}%)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mint-stats">
             <div className="mint-stat">
               <div className="lbl">
@@ -137,7 +170,8 @@ export default function ReportsPage() {
                         {c.limit != null && c.limit > 0 ? (
                           (() => {
                             const pct = (c.spent / c.limit) * 100;
-                            const over = c.spent > c.limit;
+                            // At OR over the limit is the warning state.
+                            const over = c.spent >= c.limit;
                             return (
                               <div className="mint-budgetbar">
                                 <div className="track">

@@ -7,6 +7,8 @@ import {
   formatDate,
   dateToMonthString,
   monthRange,
+  priorMonthsRange,
+  percentDelta,
   todayDateString,
   APP_TIME_ZONE,
 } from "@/lib/utils";
@@ -47,6 +49,8 @@ export default async function DashboardPage({
   const { month: requestedMonth } = await searchParams;
   const month = isValidMonth(requestedMonth) ? requestedMonth : dateToMonthString();
   const { start, end } = monthRange(month);
+  // The whole prior calendar month, for the trend deltas on the stat cards.
+  const { start: prevStart, end: prevEnd } = priorMonthsRange(month, 1);
 
   // Anchor "today" to the app timezone for the rolling-window queries.
   const todayStr = todayDateString();
@@ -91,7 +95,13 @@ export default async function DashboardPage({
       </div>
 
       <Suspense key={`stats-${month}`} fallback={<StatsFallback />}>
-        <StatsSection userId={userId} start={start} end={end} />
+        <StatsSection
+          userId={userId}
+          start={start}
+          end={end}
+          prevStart={prevStart}
+          prevEnd={prevEnd}
+        />
       </Suspense>
 
       <div className="mint-grid">
@@ -227,20 +237,47 @@ function ListFallback() {
   );
 }
 
+// Small prior-month trend line under a stat. `goodWhenUp` flips the tone:
+// rising income is good (green), rising spending is bad (red). Hidden when there
+// was no prior-month baseline to compare against.
+function TrendLine({
+  current,
+  prior,
+  goodWhenUp,
+}: {
+  current: number;
+  prior: number;
+  goodWhenUp: boolean;
+}) {
+  const delta = percentDelta(current, prior);
+  if (delta === null) return null;
+  if (delta === 0) return <div className="sub">No change vs last month</div>;
+  const up = delta > 0;
+  const good = up === goodWhenUp;
+  return (
+    <div className="sub" style={{ color: good ? "var(--pos)" : "var(--neg)" }}>
+      {up ? "▲" : "▼"} {Math.abs(delta)}% vs last month
+    </div>
+  );
+}
+
 async function StatsSection({
   userId,
   start,
   end,
+  prevStart,
+  prevEnd,
 }: {
   userId: string;
   start: Date;
   end: Date;
+  prevStart: Date;
+  prevEnd: Date;
 }) {
-  const { totalIncome, totalExpenses, netSavings } = await getMonthTotals(
-    userId,
-    start,
-    end
-  );
+  const [{ totalIncome, totalExpenses, netSavings }, prev] = await Promise.all([
+    getMonthTotals(userId, start, end),
+    getMonthTotals(userId, prevStart, prevEnd),
+  ]);
   return (
     <div className="mint-stats mint-fadein">
       <div className="mint-stat">
@@ -249,6 +286,7 @@ async function StatsSection({
           Income
         </div>
         <div className="val num">{formatCurrency(totalIncome)}</div>
+        <TrendLine current={totalIncome} prior={prev.totalIncome} goodWhenUp />
       </div>
       <div className="mint-stat">
         <div className="lbl">
@@ -261,6 +299,11 @@ async function StatsSection({
             {Math.round((totalExpenses / totalIncome) * 100)}% of income spent
           </div>
         )}
+        <TrendLine
+          current={totalExpenses}
+          prior={prev.totalExpenses}
+          goodWhenUp={false}
+        />
       </div>
       <div className="mint-stat feat">
         <div className="lbl">Net savings</div>
