@@ -5,6 +5,16 @@ All notable changes to Budgeteer. Format loosely follows
 
 ## [Unreleased] — 2026-06-26
 
+### Changed
+- **Concurrency hardening (savings withdrawals).** The withdrawal balance check
+  in `POST /api/savings/movements` reads the running balance then inserts; under
+  default isolation two concurrent withdrawals could both pass and overdraw the
+  bucket. The `$transaction` now runs at **Serializable** isolation so Postgres
+  aborts the racing write, and serialization conflicts (`P2034`) map to a clean
+  **409 "please try again"** in `handleApiError` instead of a 500. `GET` also
+  gains an explicit ownership pre-check on `?categoryId` (defense-in-depth: a
+  foreign id is now a clear 404 rather than a silently-empty list).
+
 ### Added
 - **Account deletion.** New `DELETE /api/account` permanently removes the
   authenticated user and all their data, then clears the session cookie so the

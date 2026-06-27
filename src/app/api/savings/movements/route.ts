@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeTransaction } from "@/lib/serialize";
 import { getRequiredUser } from "@/lib/session";
@@ -28,6 +29,18 @@ export const GET = withErrorHandling(async (request: Request) => {
     : DEFAULT_LIMIT;
   const cursor = searchParams.get("cursor");
   const categoryId = searchParams.get("categoryId");
+
+  // Defense-in-depth: the findMany `where` below is already scoped by userId, so
+  // a categoryId belonging to someone else simply returns nothing. Still, verify
+  // ownership explicitly so a foreign id is an unambiguous 404 rather than a
+  // silently-empty list.
+  if (categoryId) {
+    const owned = await prisma.category.findFirst({
+      where: { id: categoryId, userId },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundError("Savings bucket not found");
+  }
 
   const rows = await prisma.transaction.findMany({
     where: {
@@ -59,39 +72,49 @@ export const POST = withErrorHandling(async (request: Request) => {
   // Verify the bucket is owned AND is a savings bucket, and (for withdrawals)
   // that there's enough balance — all in one transaction so the balance can't
   // shift between the check and the insert.
-  const movement = await prisma.$transaction(async (tx) => {
-    const bucket = await tx.category.findFirst({
-      where: { id: categoryId, userId, kind: "savings" },
-    });
-    if (!bucket) throw new NotFoundError("Savings bucket not found");
-
-    if (type === "withdraw") {
-      const sums = await tx.transaction.groupBy({
-        by: ["type"],
-        where: { userId, categoryId, type: { in: ["deposit", "withdraw"] } },
-        _sum: { amount: true },
+  //
+  // Serializable isolation closes the read-then-write race: the withdrawal reads
+  // the running balance (groupBy) and then inserts. Under the default isolation,
+  // two concurrent withdrawals could both read the same balance and both pass.
+  // Serializable makes Postgres detect that conflict and abort one of them (a
+  // P2034 write-conflict, surfaced as a 409 by handleApiError) so the balance can
+  // never go negative.
+  const movement = await prisma.$transaction(
+    async (tx) => {
+      const bucket = await tx.category.findFirst({
+        where: { id: categoryId, userId, kind: "savings" },
       });
-      const sumFor = (t: string) =>
-        Number(sums.find((s) => s.type === t)?._sum.amount ?? 0);
-      const balance = sumFor("deposit") - sumFor("withdraw");
-      if (amount > balance) {
-        throw new BadRequestError(
-          `Cannot withdraw more than the bucket balance (${formatCurrency(balance)})`
-        );
-      }
-    }
+      if (!bucket) throw new NotFoundError("Savings bucket not found");
 
-    return tx.transaction.create({
-      data: {
-        type,
-        amount,
-        date: date ?? new Date(),
-        categoryId,
-        note: note || null,
-        userId,
-      },
-      include: { category: true },
-    });
-  });
+      if (type === "withdraw") {
+        const sums = await tx.transaction.groupBy({
+          by: ["type"],
+          where: { userId, categoryId, type: { in: ["deposit", "withdraw"] } },
+          _sum: { amount: true },
+        });
+        const sumFor = (t: string) =>
+          Number(sums.find((s) => s.type === t)?._sum.amount ?? 0);
+        const balance = sumFor("deposit") - sumFor("withdraw");
+        if (amount > balance) {
+          throw new BadRequestError(
+            `Cannot withdraw more than the bucket balance (${formatCurrency(balance)})`
+          );
+        }
+      }
+
+      return tx.transaction.create({
+        data: {
+          type,
+          amount,
+          date: date ?? new Date(),
+          categoryId,
+          note: note || null,
+          userId,
+        },
+        include: { category: true },
+      });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
   return NextResponse.json(serializeTransaction(movement), { status: 201 });
 });
