@@ -6,6 +6,14 @@ All notable changes to Budgeteer. Format loosely follows
 ## [Unreleased] — 2026-06-26
 
 ### Added
+- **Account deletion.** New `DELETE /api/account` permanently removes the
+  authenticated user and all their data, then clears the session cookie so the
+  orphaned JWT can't be replayed. Because `Transaction`/`Budget` → `Category` are
+  `onDelete: Restrict`, a bare `user.delete` cascade could trip the FK check, so
+  the route deletes transactions → budgets → categories → user in one
+  `$transaction` (accounts/sessions still cascade). A **Danger zone** on the
+  Settings page (`src/components/DeleteAccount.tsx`) gates it behind a typed
+  `DELETE` confirmation and nudges the user to export their data first.
 - **Insights & alerts.**
   - **Overspend warning (Reports).** A category that has reached or passed its
     monthly budget limit (`spent ≥ limit`) now raises a warning banner at the top

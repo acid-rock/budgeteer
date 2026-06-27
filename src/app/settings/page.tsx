@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { APP_TIME_ZONE } from "@/lib/utils";
+import { DeleteAccount } from "@/components/DeleteAccount";
 
 const PROVIDERS = [
   { id: "github", label: "GitHub" },
@@ -154,11 +155,14 @@ export default async function SettingsPage({
           "use server";
           await signOut({ redirectTo: "/login" });
         }}
+        style={{ marginBottom: 16 }}
       >
         <button type="submit" className="mint-btn danger">
           Sign out
         </button>
       </form>
+
+      <DeleteAccount />
     </div>
   );
 }
