@@ -6,6 +6,7 @@ import { dateToMonthString, formatCurrency } from "@/lib/utils";
 import { CHART_PALETTE, categoryTile } from "@/lib/colors";
 import { CategoryIcon } from "@/lib/category-icon";
 import { Donut } from "@/components/Donut";
+import { ImportCsv } from "@/components/ImportCsv";
 import { ReportSkeleton } from "@/components/Skeletons";
 import type { MonthlyReport } from "@/types";
 
@@ -42,6 +43,7 @@ export default function ReportsPage() {
           <a className="mint-btn" href="/api/transactions/export" download>
             Export CSV
           </a>
+          <ImportCsv />
           <input
             type="month"
             value={month}
